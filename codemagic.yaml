@@ -1,0 +1,100 @@
+workflows:
+  android-build:
+    name: Android Build
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+    environment:
+      java: 17
+      node: 18
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm install
+      - name: Build web app
+        script: |
+          npm run build
+      - name: Sync Capacitor
+        script: |
+          npx cap sync android
+      - name: Build Android APK
+        script: |
+          cd android
+          ./gradlew assembleDebug
+    artifacts:
+      - android/app/build/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - your-email@example.com # Cambia con la tua email
+        notify:
+          success: true
+          failure: true
+
+  ios-build:
+    name: iOS Build
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+    environment:
+      xcode: latest
+      node: 18
+      cocoapods: default
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm install
+      - name: Build web app
+        script: |
+          npm run build
+      - name: Sync Capacitor
+        script: |
+          npx cap sync ios
+      - name: Install CocoaPods
+        script: |
+          cd ios/App
+          pod install
+      - name: Build iOS (Simulator)
+        script: |
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            build
+    artifacts:
+      - ios/App/build/**/*.app
+    publishing:
+      email:
+        recipients:
+          - your-email@example.com
+        notify:
+          success: true
+          failure: true
+
+  # Build completo con APK firmato (per distribuzione)
+  android-release:
+    name: Android Release
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+    environment:
+      java: 17
+      node: 18
+      groups:
+        - android_signing # Configura in Codemagic UI
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm install
+      - name: Build web app
+        script: |
+          npm run build
+      - name: Sync Capacitor
+        script: |
+          npx cap sync android
+      - name: Build Android Release APK
+        script: |
+          cd android
+          ./gradlew assembleRelease
+    artifacts:
+      - android/app/build/outputs/**/*.apk
+

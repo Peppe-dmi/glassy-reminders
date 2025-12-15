@@ -4,6 +4,7 @@ import { Category, Reminder, ExportData, CategoryColor, RecurrenceType } from '@
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useNtfy } from '@/hooks/useNtfy';
+import { useNativeNotifications } from '@/hooks/useNativeNotifications';
 import { addDays, addWeeks, addMonths, addYears, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isSameDay, startOfDay, endOfDay } from 'date-fns';
 
 interface ReminderStats {
@@ -63,27 +64,41 @@ export function ReminderProvider({ children }: { children: React.ReactNode }) {
     testNotification 
   } = useNotifications();
   const { scheduleNotification: scheduleNtfyNotification, isEnabled: ntfyEnabled } = useNtfy();
+  const { 
+    isNative, 
+    scheduleNotification: scheduleNativeNotification, 
+    cancelNotification: cancelNativeNotification 
+  } = useNativeNotifications();
   
-  // Combined notification function that uses both local and ntfy
+  // Combined notification function that uses native, ntfy, or web notifications
   const scheduleNotification = useCallback((reminder: Reminder, categoryName: string) => {
-    // Schedule local notification (browser)
-    scheduleLocalNotification(reminder, categoryName);
+    if (!reminder.isAlarmEnabled) return;
     
-    // Also schedule ntfy notification if enabled
-    if (ntfyEnabled && reminder.isAlarmEnabled) {
-      const reminderDate = new Date(reminder.date);
-      
-      if (reminder.time) {
-        const [hours, minutes] = reminder.time.split(':').map(Number);
-        reminderDate.setHours(hours, minutes, 0, 0);
-      }
-      
-      // Calculate notification time (subtract alarm minutes before)
-      const notificationTime = new Date(reminderDate.getTime() - (reminder.alarmMinutesBefore * 60 * 1000));
-      
+    const reminderDate = new Date(reminder.date);
+    
+    if (reminder.time) {
+      const [hours, minutes] = reminder.time.split(':').map(Number);
+      reminderDate.setHours(hours, minutes, 0, 0);
+    }
+    
+    // Calculate notification time (subtract alarm minutes before)
+    const notificationTime = new Date(reminderDate.getTime() - (reminder.alarmMinutesBefore * 60 * 1000));
+    
+    // Priority 1: Native notifications (Capacitor app)
+    if (isNative) {
+      scheduleNativeNotification({
+        id: reminder.id,
+        title: `⏰ ${categoryName}: ${reminder.title}`,
+        body: reminder.description || 'Hai un promemoria!',
+        scheduledAt: notificationTime,
+      });
+      console.log(`📱 Notifica NATIVA programmata per: ${notificationTime.toLocaleString()}`);
+      return;
+    }
+    
+    // Priority 2: ntfy notifications (works with app closed on web)
+    if (ntfyEnabled) {
       const priority = reminder.priority === 'high' ? 5 : reminder.priority === 'medium' ? 4 : 3;
-      
-      // Use ntfy's built-in scheduling - this works even with app closed!
       scheduleNtfyNotification(
         `⏰ ${categoryName}: ${reminder.title}`,
         reminder.description || 'Hai un promemoria!',
@@ -91,10 +106,14 @@ export function ReminderProvider({ children }: { children: React.ReactNode }) {
         priority,
         reminder.id
       );
-      
-      console.log(`📅 Notifica ntfy programmata per: ${notificationTime.toLocaleString()}`);
+      console.log(`📤 Notifica ntfy programmata per: ${notificationTime.toLocaleString()}`);
     }
-  }, [scheduleLocalNotification, scheduleNtfyNotification, ntfyEnabled]);
+    
+    // Priority 3: Web notifications (fallback, only works with app open)
+    scheduleLocalNotification(reminder, categoryName);
+    console.log(`🌐 Notifica web programmata per: ${notificationTime.toLocaleString()}`);
+    
+  }, [scheduleLocalNotification, scheduleNtfyNotification, ntfyEnabled, isNative, scheduleNativeNotification]);
 
   // Schedule notifications for all reminders on load
   useEffect(() => {
