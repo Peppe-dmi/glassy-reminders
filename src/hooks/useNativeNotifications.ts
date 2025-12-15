@@ -55,7 +55,6 @@ export function useNativeNotifications() {
 
   const requestPermission = useCallback(async () => {
     if (!isNative) {
-      // Fallback to web notifications
       if ('Notification' in window) {
         const permission = await Notification.requestPermission();
         return permission === 'granted';
@@ -93,7 +92,7 @@ export function useNativeNotifications() {
               icon: '/icon-192.png',
               tag: options.id,
               requireInteraction: true,
-              silent: settings.ringtone === 'silent',
+              silent: true, // Always silent, we play our own sound
             });
             // Play selected ringtone
             if (settings.ringtone !== 'silent') {
@@ -110,9 +109,7 @@ export function useNativeNotifications() {
     }
 
     try {
-      // Choose channel based on settings
-      const channelId = settings.vibrationEnabled ? 'promemoria-vibration' : 'promemoria-silent';
-      
+      // Native notification - NO sound from Android, we handle it ourselves
       const notification: LocalNotificationSchema = {
         id: notificationId,
         title: options.title,
@@ -121,10 +118,12 @@ export function useNativeNotifications() {
           at: options.scheduledAt,
           allowWhileIdle: true,
         },
-        sound: settings.ringtone === 'silent' ? undefined : 'default',
+        // NO sound - we play our own custom sound
+        sound: undefined,
         smallIcon: 'ic_notification',
         largeIcon: 'ic_launcher',
-        channelId: channelId,
+        // Use silent channel - sound is handled by our code
+        channelId: settings.vibrationEnabled ? 'promemoria-vibration-only' : 'promemoria-silent',
         extra: {
           reminderId: options.id,
           ringtone: settings.ringtone,
@@ -210,50 +209,54 @@ export function useNativeNotifications() {
 
   const setupNotificationChannels = async () => {
     try {
-      // Channel with vibration
+      // Channel with vibration only (no sound - we handle sound ourselves)
       await LocalNotifications.createChannel({
-        id: 'promemoria-vibration',
-        name: 'Promemoria (con vibrazione)',
-        description: 'Notifiche con suono e vibrazione',
+        id: 'promemoria-vibration-only',
+        name: 'Promemoria',
+        description: 'Notifiche promemoria con vibrazione',
         importance: 5,
         visibility: 1,
-        sound: 'default',
+        sound: undefined, // No Android sound
         vibration: true,
         lights: true,
         lightColor: '#667eea',
       });
 
-      // Channel without vibration
+      // Silent channel (no sound, no vibration)
       await LocalNotifications.createChannel({
         id: 'promemoria-silent',
-        name: 'Promemoria (senza vibrazione)',
-        description: 'Notifiche solo con suono',
+        name: 'Promemoria (silenzioso)',
+        description: 'Notifiche promemoria silenziose',
         importance: 5,
         visibility: 1,
-        sound: 'default',
+        sound: undefined,
         vibration: false,
         lights: true,
         lightColor: '#667eea',
       });
 
-      console.log('📢 Canali notifiche creati');
+      console.log('📢 Canali notifiche creati (senza suono Android)');
     } catch (error) {
       console.log('Canale già esistente o errore:', error);
     }
   };
 
   const setupNotificationListeners = () => {
-    // When notification is received (app in foreground)
+    // When notification is received - play OUR sound
     LocalNotifications.addListener('localNotificationReceived', (notification) => {
       console.log('🔔 Notifica ricevuta:', notification);
       
-      // Play custom sound when notification arrives (for foreground)
+      // Get settings and play our custom sound
       const settings = getNotificationSettings();
+      
+      // Play the selected ringtone (not Android default)
       if (settings.ringtone !== 'silent') {
         playRingtone(settings.ringtone as RingtoneType);
       }
-      if (settings.vibrationEnabled) {
-        vibrateDevice(true);
+      
+      // Vibrate is handled by the channel, but we can reinforce it
+      if (settings.vibrationEnabled && 'vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200, 100, 300]);
       }
     });
 
