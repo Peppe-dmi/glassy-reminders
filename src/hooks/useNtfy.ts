@@ -60,38 +60,54 @@ export function useNtfy() {
     reminderId?: string
   ) => {
     if (!config.enabled || !config.topic) {
-      console.log('📵 ntfy non configurato');
+      console.log('📵 ntfy non configurato, topic:', config.topic, 'enabled:', config.enabled);
       return false;
     }
 
     const now = new Date();
+    console.log('📅 Programmando notifica ntfy:', {
+      title,
+      scheduledTime: scheduledTime.toLocaleString(),
+      now: now.toLocaleString(),
+      topic: config.topic
+    });
+
     if (scheduledTime <= now) {
       console.log('⏰ Orario già passato, invio immediato');
       return sendNotification(title, message, priority);
     }
 
     try {
-      // ntfy supports scheduling with the "at" parameter (Unix timestamp)
-      const unixTimestamp = Math.floor(scheduledTime.getTime() / 1000);
+      // Calculate delay in seconds from now
+      const delaySeconds = Math.floor((scheduledTime.getTime() - now.getTime()) / 1000);
       
-      const response = await fetch(`${config.server}/${config.topic}`, {
+      // Use the "delay" field in the JSON body (more reliable than X-At header)
+      const body = {
+        topic: config.topic,
+        title: title,
+        message: message,
+        priority: priority,
+        tags: ['alarm_clock'],
+        delay: `${delaySeconds}s`, // e.g., "120s" for 2 minutes
+      };
+      
+      console.log('📤 Invio richiesta ntfy:', body);
+      
+      const response = await fetch(`${config.server}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-At': unixTimestamp.toString(), // Schedule for specific time
         },
-        body: JSON.stringify({
-          topic: config.topic,
-          title: title,
-          message: message,
-          priority: priority,
-          tags: ['calendar', 'alarm_clock'],
-        }),
+        body: JSON.stringify(body),
       });
 
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Notifica ntfy programmata per:', scheduledTime.toLocaleString(), 'ID:', data.id);
+        console.log('✅ Notifica ntfy programmata!', {
+          id: data.id,
+          scheduledFor: scheduledTime.toLocaleString(),
+          delaySeconds
+        });
         
         // Store the ntfy message ID to allow cancellation later
         if (reminderId && data.id) {
