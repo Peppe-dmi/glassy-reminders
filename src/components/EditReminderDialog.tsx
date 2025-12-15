@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Bell, BellOff, Calendar as CalendarIcon } from 'lucide-react';
+import { X, Bell, BellOff, Calendar as CalendarIcon, Repeat } from 'lucide-react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { Reminder } from '@/types/reminder';
+import { Reminder, RecurrenceType } from '@/types/reminder';
 import { useReminders } from '@/contexts/ReminderContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,14 @@ const alarmOptions = [
   { value: 1440, label: '1 giorno prima' },
 ];
 
+const recurrenceOptions: { value: RecurrenceType; label: string; icon: string }[] = [
+  { value: 'none', label: 'Mai', icon: '○' },
+  { value: 'daily', label: 'Ogni giorno', icon: '📆' },
+  { value: 'weekly', label: 'Ogni settimana', icon: '📅' },
+  { value: 'monthly', label: 'Ogni mese', icon: '🗓️' },
+  { value: 'yearly', label: 'Ogni anno', icon: '🎂' },
+];
+
 export function EditReminderDialog({ reminder, open, onOpenChange }: EditReminderDialogProps) {
   const { updateReminder, notificationPermission, requestNotificationPermission } = useReminders();
   
@@ -39,6 +47,7 @@ export function EditReminderDialog({ reminder, open, onOpenChange }: EditReminde
   const [isAlarmEnabled, setIsAlarmEnabled] = useState(reminder.isAlarmEnabled);
   const [alarmMinutesBefore, setAlarmMinutesBefore] = useState(reminder.alarmMinutesBefore);
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>(reminder.priority);
+  const [recurrence, setRecurrence] = useState<RecurrenceType>(reminder.recurrence || 'none');
 
   useEffect(() => {
     if (open) {
@@ -49,6 +58,7 @@ export function EditReminderDialog({ reminder, open, onOpenChange }: EditReminde
       setIsAlarmEnabled(reminder.isAlarmEnabled);
       setAlarmMinutesBefore(reminder.alarmMinutesBefore);
       setPriority(reminder.priority);
+      setRecurrence(reminder.recurrence || 'none');
     }
   }, [open, reminder]);
 
@@ -80,6 +90,7 @@ export function EditReminderDialog({ reminder, open, onOpenChange }: EditReminde
       isAlarmEnabled: isAlarmEnabled && notificationPermission === 'granted',
       alarmMinutesBefore,
       priority,
+      recurrence,
     });
 
     toast.success('Promemoria aggiornato!');
@@ -194,6 +205,30 @@ export function EditReminderDialog({ reminder, open, onOpenChange }: EditReminde
                       }`}
                     >
                       {p.icon} {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Recurrence */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Repeat className="w-4 h-4" />
+                  Ripeti
+                </Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {recurrenceOptions.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setRecurrence(opt.value)}
+                      className={`p-2 rounded-xl text-sm transition-all ${
+                        recurrence === opt.value
+                          ? 'glass-strong ring-2 ring-primary'
+                          : 'glass-subtle hover:bg-muted'
+                      }`}
+                    >
+                      {opt.icon} {opt.label}
                     </button>
                   ))}
                 </div>

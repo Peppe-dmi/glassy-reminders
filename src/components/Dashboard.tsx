@@ -6,6 +6,9 @@ import { CategoryCard } from './CategoryCard';
 import { AddCategoryDialog } from './AddCategoryDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { ThemeToggle } from './ThemeToggle';
+import { TodayWidget } from './TodayWidget';
+import { SearchBar } from './SearchBar';
+import { StatsCard } from './StatsCard';
 import { useState, useMemo } from 'react';
 
 export function Dashboard() {
@@ -41,21 +44,31 @@ export function Dashboard() {
       {/* Header */}
       <header className="relative z-10 glass-subtle sticky top-0">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-3"
+              className="flex items-center gap-3 flex-shrink-0"
             >
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
                 <Calendar className="w-5 h-5 text-primary-foreground" />
               </div>
-              <div>
+              <div className="hidden sm:block">
                 <h1 className="font-display text-xl font-bold gradient-text">Promemoria</h1>
                 <p className="text-xs text-muted-foreground">
                   {todayReminders > 0 ? `${todayReminders} oggi` : 'Nessun impegno oggi'}
                 </p>
               </div>
+            </motion.div>
+
+            {/* Search Bar - Center */}
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="flex-1 max-w-md hidden md:block"
+            >
+              <SearchBar />
             </motion.div>
 
             <div className="flex items-center gap-2">
@@ -81,11 +94,38 @@ export function Dashboard() {
               </motion.button>
             </div>
           </div>
+
+          {/* Mobile Search Bar */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="mt-3 md:hidden"
+          >
+            <SearchBar />
+          </motion.div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="relative z-10 container mx-auto px-4 py-6 pb-24">
+        {/* Today Widget */}
+        <TodayWidget />
+
+        {/* Stats Card */}
+        <StatsCard />
+
+        {/* Categories Section Title */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="flex items-center justify-between mb-4"
+        >
+          <h2 className="font-display text-lg font-semibold">Le tue categorie</h2>
+          <span className="text-sm text-muted-foreground">{categories.length} categorie</span>
+        </motion.div>
+
         {/* Categories Grid */}
         <motion.div
           initial={{ opacity: 0 }}

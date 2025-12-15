@@ -1,12 +1,20 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Bell, BellOff, Clock, Trash2, Edit, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, Bell, BellOff, Clock, Trash2, Edit, ChevronDown, ChevronUp, Repeat, AlarmClock } from 'lucide-react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Reminder } from '@/types/reminder';
 import { useReminders } from '@/contexts/ReminderContext';
 import { EditReminderDialog } from './EditReminderDialog';
 import { toast } from 'sonner';
+
+const recurrenceLabels: Record<string, string> = {
+  none: '',
+  daily: 'Ogni giorno',
+  weekly: 'Ogni settimana',
+  monthly: 'Ogni mese',
+  yearly: 'Ogni anno',
+};
 
 interface ReminderItemProps {
   reminder: Reminder;
@@ -29,9 +37,16 @@ const priorityClasses: Record<string, string> = {
 };
 
 export function ReminderItem({ reminder, categoryColor }: ReminderItemProps) {
-  const { toggleReminderComplete, deleteReminder } = useReminders();
+  const { toggleReminderComplete, deleteReminder, snoozeReminder } = useReminders();
   const [showDetails, setShowDetails] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [showSnoozeOptions, setShowSnoozeOptions] = useState(false);
+
+  const handleSnooze = (minutes: number) => {
+    snoozeReminder(reminder.id, minutes);
+    toast.success(`Posticipato di ${minutes} minuti`);
+    setShowSnoozeOptions(false);
+  };
 
   const handleComplete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -96,7 +111,7 @@ export function ReminderItem({ reminder, categoryColor }: ReminderItemProps) {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 mt-1 text-sm">
+              <div className="flex items-center gap-2 mt-1 text-sm flex-wrap">
                 <span className={`flex items-center gap-1 ${isPast ? 'text-destructive' : 'text-muted-foreground'}`}>
                   <Clock className="w-3.5 h-3.5" />
                   {format(new Date(reminder.date), 'd MMM', { locale: it })}
@@ -105,6 +120,12 @@ export function ReminderItem({ reminder, categoryColor }: ReminderItemProps) {
                 <span className={`text-xs font-medium ${priorityClasses[reminder.priority]}`}>
                   {reminder.priority === 'high' ? '⚡ Alta' : reminder.priority === 'medium' ? '→ Media' : '○ Bassa'}
                 </span>
+                {reminder.recurrence !== 'none' && (
+                  <span className="flex items-center gap-1 text-xs text-primary">
+                    <Repeat className="w-3 h-3" />
+                    {recurrenceLabels[reminder.recurrence]}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -126,14 +147,54 @@ export function ReminderItem({ reminder, categoryColor }: ReminderItemProps) {
 
             {reminder.isAlarmEnabled && (
               <div className="glass-subtle rounded-xl p-3 mb-3 text-sm">
-                <div className="flex items-center gap-2">
-                  <Bell className="w-4 h-4 text-primary" />
-                  <span>
-                    Notifica {reminder.alarmMinutesBefore === 0 
-                      ? "all'ora esatta" 
-                      : `${reminder.alarmMinutesBefore} minuti prima`}
-                  </span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-primary" />
+                    <span>
+                      Notifica {reminder.alarmMinutesBefore === 0 
+                        ? "all'ora esatta" 
+                        : `${reminder.alarmMinutesBefore} minuti prima`}
+                    </span>
+                  </div>
+                  {!reminder.isCompleted && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowSnoozeOptions(!showSnoozeOptions); }}
+                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      <AlarmClock className="w-3 h-3" />
+                      Posticipa
+                    </button>
+                  )}
                 </div>
+                {showSnoozeOptions && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="mt-3 pt-3 border-t border-border/50 grid grid-cols-4 gap-2"
+                  >
+                    {[5, 15, 30, 60].map((mins) => (
+                      <button
+                        key={mins}
+                        onClick={(e) => { e.stopPropagation(); handleSnooze(mins); }}
+                        className="py-1.5 px-2 text-xs rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors"
+                      >
+                        {mins < 60 ? `${mins}m` : '1h'}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </div>
+            )}
+
+            {reminder.recurrence !== 'none' && (
+              <div className="glass-subtle rounded-xl p-3 mb-3 text-sm">
+                <div className="flex items-center gap-2 text-primary">
+                  <Repeat className="w-4 h-4" />
+                  <span>Si ripete: {recurrenceLabels[reminder.recurrence]}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Quando completi, verrà creato il prossimo automaticamente
+                </p>
               </div>
             )}
 

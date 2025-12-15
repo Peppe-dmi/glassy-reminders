@@ -1,5 +1,7 @@
 export type CategoryColor = 'work' | 'personal' | 'friends' | 'health' | 'finance' | 'default';
 
+export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+
 export interface Category {
   id: string;
   name: string;
@@ -20,6 +22,13 @@ export interface Reminder {
   isCompleted: boolean;
   priority: 'low' | 'medium' | 'high';
   createdAt: Date;
+  // Recurrence
+  recurrence: RecurrenceType;
+  recurrenceEndDate?: Date;
+  // Snooze
+  snoozedUntil?: Date;
+  // Tags
+  tags?: string[];
 }
 
 export interface ExportData {

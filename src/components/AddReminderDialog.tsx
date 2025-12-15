@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Bell, BellOff, Calendar as CalendarIcon } from 'lucide-react';
+import { X, Bell, BellOff, Calendar as CalendarIcon, Repeat } from 'lucide-react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useReminders } from '@/contexts/ReminderContext';
+import { RecurrenceType } from '@/types/reminder';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,6 +30,14 @@ const alarmOptions = [
   { value: 1440, label: '1 giorno prima' },
 ];
 
+const recurrenceOptions: { value: RecurrenceType; label: string; icon: string }[] = [
+  { value: 'none', label: 'Mai', icon: '○' },
+  { value: 'daily', label: 'Ogni giorno', icon: '📆' },
+  { value: 'weekly', label: 'Ogni settimana', icon: '📅' },
+  { value: 'monthly', label: 'Ogni mese', icon: '🗓️' },
+  { value: 'yearly', label: 'Ogni anno', icon: '🎂' },
+];
+
 export function AddReminderDialog({ categoryId, preselectedDate, open, onOpenChange }: AddReminderDialogProps) {
   const { addReminder, notificationPermission, requestNotificationPermission } = useReminders();
   
@@ -39,6 +48,7 @@ export function AddReminderDialog({ categoryId, preselectedDate, open, onOpenCha
   const [isAlarmEnabled, setIsAlarmEnabled] = useState(true);
   const [alarmMinutesBefore, setAlarmMinutesBefore] = useState(15);
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [recurrence, setRecurrence] = useState<RecurrenceType>('none');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,9 +81,10 @@ export function AddReminderDialog({ categoryId, preselectedDate, open, onOpenCha
       alarmMinutesBefore,
       isCompleted: false,
       priority,
+      recurrence,
     });
 
-    toast.success('Promemoria creato!');
+    toast.success(recurrence !== 'none' ? 'Promemoria ricorrente creato!' : 'Promemoria creato!');
     
     // Reset form
     setTitle('');
@@ -83,6 +94,7 @@ export function AddReminderDialog({ categoryId, preselectedDate, open, onOpenCha
     setIsAlarmEnabled(true);
     setAlarmMinutesBefore(15);
     setPriority('medium');
+    setRecurrence('none');
     onOpenChange(false);
   };
 
@@ -203,6 +215,39 @@ export function AddReminderDialog({ categoryId, preselectedDate, open, onOpenCha
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Recurrence */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Repeat className="w-4 h-4" />
+                  Ripeti
+                </Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {recurrenceOptions.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setRecurrence(opt.value)}
+                      className={`p-2 rounded-xl text-sm transition-all ${
+                        recurrence === opt.value
+                          ? 'glass-strong ring-2 ring-primary'
+                          : 'glass-subtle hover:bg-muted'
+                      }`}
+                    >
+                      {opt.icon} {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {recurrence !== 'none' && (
+                  <motion.p
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="text-xs text-muted-foreground mt-1"
+                  >
+                    💡 Quando completi questo promemoria, verrà creato automaticamente il prossimo
+                  </motion.p>
+                )}
               </div>
 
               {/* Alarm Toggle */}
