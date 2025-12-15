@@ -62,7 +62,7 @@ export function ReminderProvider({ children }: { children: React.ReactNode }) {
     permission,
     testNotification 
   } = useNotifications();
-  const { sendNotification: sendNtfyNotification, isEnabled: ntfyEnabled } = useNtfy();
+  const { scheduleNotification: scheduleNtfyNotification, isEnabled: ntfyEnabled } = useNtfy();
   
   // Combined notification function that uses both local and ntfy
   const scheduleNotification = useCallback((reminder: Reminder, categoryName: string) => {
@@ -72,30 +72,29 @@ export function ReminderProvider({ children }: { children: React.ReactNode }) {
     // Also schedule ntfy notification if enabled
     if (ntfyEnabled && reminder.isAlarmEnabled) {
       const reminderDate = new Date(reminder.date);
-      let notificationTime = reminderDate.getTime();
       
       if (reminder.time) {
         const [hours, minutes] = reminder.time.split(':').map(Number);
         reminderDate.setHours(hours, minutes, 0, 0);
-        notificationTime = reminderDate.getTime() - (reminder.alarmMinutesBefore * 60 * 1000);
       }
       
-      const now = Date.now();
-      const delay = notificationTime - now;
+      // Calculate notification time (subtract alarm minutes before)
+      const notificationTime = new Date(reminderDate.getTime() - (reminder.alarmMinutesBefore * 60 * 1000));
       
-      if (delay > 0) {
-        // Schedule ntfy notification
-        setTimeout(() => {
-          const priority = reminder.priority === 'high' ? 5 : reminder.priority === 'medium' ? 4 : 3;
-          sendNtfyNotification(
-            `⏰ ${categoryName}: ${reminder.title}`,
-            reminder.description || 'Hai un promemoria!',
-            priority
-          );
-        }, delay);
-      }
+      const priority = reminder.priority === 'high' ? 5 : reminder.priority === 'medium' ? 4 : 3;
+      
+      // Use ntfy's built-in scheduling - this works even with app closed!
+      scheduleNtfyNotification(
+        `⏰ ${categoryName}: ${reminder.title}`,
+        reminder.description || 'Hai un promemoria!',
+        notificationTime,
+        priority,
+        reminder.id
+      );
+      
+      console.log(`📅 Notifica ntfy programmata per: ${notificationTime.toLocaleString()}`);
     }
-  }, [scheduleLocalNotification, sendNtfyNotification, ntfyEnabled]);
+  }, [scheduleLocalNotification, scheduleNtfyNotification, ntfyEnabled]);
 
   // Schedule notifications for all reminders on load
   useEffect(() => {

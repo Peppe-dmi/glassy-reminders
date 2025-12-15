@@ -16,6 +16,7 @@ const DEFAULT_CONFIG: NtfyConfig = {
 export function useNtfy() {
   const [config, setConfig] = useLocalStorage<NtfyConfig>('ntfy-config', DEFAULT_CONFIG);
 
+  // Send immediate notification
   const sendNotification = useCallback(async (title: string, message: string, priority: number = 4) => {
     if (!config.enabled || !config.topic) {
       console.log('📵 ntfy non configurato');
@@ -32,7 +33,7 @@ export function useNtfy() {
           topic: config.topic,
           title: title,
           message: message,
-          priority: priority, // 1-5, 5 = urgent
+          priority: priority,
           tags: ['calendar', 'promemoria'],
         }),
       });
@@ -49,6 +50,67 @@ export function useNtfy() {
       return false;
     }
   }, [config]);
+
+  // Schedule a notification for a specific time using ntfy's scheduling feature
+  const scheduleNotification = useCallback(async (
+    title: string, 
+    message: string, 
+    scheduledTime: Date,
+    priority: number = 4,
+    reminderId?: string
+  ) => {
+    if (!config.enabled || !config.topic) {
+      console.log('📵 ntfy non configurato');
+      return false;
+    }
+
+    const now = new Date();
+    if (scheduledTime <= now) {
+      console.log('⏰ Orario già passato, invio immediato');
+      return sendNotification(title, message, priority);
+    }
+
+    try {
+      // ntfy supports scheduling with the "at" parameter (Unix timestamp)
+      const unixTimestamp = Math.floor(scheduledTime.getTime() / 1000);
+      
+      const response = await fetch(`${config.server}/${config.topic}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-At': unixTimestamp.toString(), // Schedule for specific time
+        },
+        body: JSON.stringify({
+          topic: config.topic,
+          title: title,
+          message: message,
+          priority: priority,
+          tags: ['calendar', 'alarm_clock'],
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Notifica ntfy programmata per:', scheduledTime.toLocaleString(), 'ID:', data.id);
+        
+        // Store the ntfy message ID to allow cancellation later
+        if (reminderId && data.id) {
+          const storedIds = JSON.parse(localStorage.getItem('ntfy-scheduled-ids') || '{}');
+          storedIds[reminderId] = data.id;
+          localStorage.setItem('ntfy-scheduled-ids', JSON.stringify(storedIds));
+        }
+        
+        return true;
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Errore ntfy scheduling:', response.status, errorText);
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Errore scheduling ntfy:', error);
+      return false;
+    }
+  }, [config, sendNotification]);
 
   const testNotification = useCallback(async () => {
     return sendNotification(
@@ -83,6 +145,7 @@ export function useNtfy() {
   return {
     config,
     sendNotification,
+    scheduleNotification,
     testNotification,
     enableNtfy,
     disableNtfy,
