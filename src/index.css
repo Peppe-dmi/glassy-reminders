@@ -6,69 +6,125 @@
 
 @layer base {
   :root {
-    --background: 230 25% 8%;
-    --foreground: 210 40% 98%;
+    /* Light Theme - Clean & Elegant */
+    --background: 0 0% 96%;
+    --foreground: 240 10% 10%;
 
-    --card: 230 25% 12%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
 
-    --popover: 230 25% 10%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
 
-    --primary: 250 90% 65%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 200 80% 55%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 240 5% 92%;
+    --secondary-foreground: 240 10% 10%;
 
-    --muted: 230 20% 18%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 240 5% 90%;
+    --muted-foreground: 240 5% 45%;
 
-    --accent: 280 70% 60%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 330 80% 60%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 75% 55%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 230 20% 20%;
-    --input: 230 20% 15%;
-    --ring: 250 90% 65%;
+    --border: 240 5% 85%;
+    --input: 240 5% 90%;
+    --ring: 262 83% 58%;
 
     --radius: 1rem;
 
-    /* Glass effects */
-    --glass-bg: 230 25% 15% / 0.6;
-    --glass-border: 230 20% 30% / 0.3;
+    /* Glass effects - Light */
+    --glass-bg: 0 0% 100% / 0.7;
+    --glass-border: 0 0% 0% / 0.08;
     --glass-blur: 20px;
     
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(250 90% 65%), hsl(280 70% 60%));
-    --gradient-secondary: linear-gradient(135deg, hsl(200 80% 55%), hsl(250 90% 65%));
-    --gradient-accent: linear-gradient(135deg, hsl(280 70% 60%), hsl(320 80% 55%));
-    --gradient-surface: linear-gradient(145deg, hsl(230 25% 15% / 0.8), hsl(230 25% 10% / 0.6));
-    --gradient-glow: radial-gradient(ellipse at center, hsl(250 90% 65% / 0.15), transparent 70%);
+    --gradient-primary: linear-gradient(135deg, hsl(262 83% 58%), hsl(330 80% 60%));
+    --gradient-secondary: linear-gradient(135deg, hsl(200 80% 55%), hsl(262 83% 58%));
+    --gradient-surface: linear-gradient(145deg, hsl(0 0% 100% / 0.9), hsl(0 0% 98% / 0.7));
     
     /* Shadows */
-    --shadow-glass: 0 8px 32px hsl(0 0% 0% / 0.3), inset 0 1px 0 hsl(0 0% 100% / 0.05);
-    --shadow-glow: 0 0 40px hsl(250 90% 65% / 0.3);
-    --shadow-card: 0 4px 24px hsl(0 0% 0% / 0.4);
+    --shadow-glass: 0 8px 32px hsl(0 0% 0% / 0.08), inset 0 1px 0 hsl(0 0% 100% / 0.9);
+    --shadow-glow: 0 0 40px hsl(262 83% 58% / 0.2);
+    --shadow-card: 0 4px 24px hsl(0 0% 0% / 0.08);
 
     /* Category colors */
-    --category-work: 45 90% 55%;
-    --category-personal: 200 80% 55%;
-    --category-friends: 320 80% 60%;
-    --category-health: 140 70% 50%;
-    --category-finance: 280 70% 60%;
-    --category-default: 250 90% 65%;
+    --category-work: 35 90% 55%;
+    --category-personal: 200 80% 50%;
+    --category-friends: 330 80% 60%;
+    --category-health: 150 70% 45%;
+    --category-finance: 262 70% 55%;
+    --category-default: 262 83% 58%;
 
-    --sidebar-background: 230 25% 10%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 250 90% 65%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 230 20% 18%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 230 20% 20%;
-    --sidebar-ring: 250 90% 65%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 10% 10%;
+    --sidebar-primary: 262 83% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 5% 92%;
+    --sidebar-accent-foreground: 240 10% 10%;
+    --sidebar-border: 240 5% 85%;
+    --sidebar-ring: 262 83% 58%;
+  }
+
+  .dark {
+    /* Dark Theme - Warm & Sophisticated */
+    --background: 240 10% 6%;
+    --foreground: 0 0% 95%;
+
+    --card: 240 10% 10%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 240 10% 8%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 262 83% 65%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 8% 16%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 240 8% 14%;
+    --muted-foreground: 240 5% 60%;
+
+    --accent: 330 80% 65%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 8% 18%;
+    --input: 240 8% 14%;
+    --ring: 262 83% 65%;
+
+    /* Glass effects - Dark */
+    --glass-bg: 240 10% 12% / 0.7;
+    --glass-border: 0 0% 100% / 0.08;
+    
+    /* Shadows */
+    --shadow-glass: 0 8px 32px hsl(0 0% 0% / 0.4), inset 0 1px 0 hsl(0 0% 100% / 0.05);
+    --shadow-glow: 0 0 40px hsl(262 83% 65% / 0.25);
+    --shadow-card: 0 4px 24px hsl(0 0% 0% / 0.5);
+
+    /* Category colors - slightly brighter for dark mode */
+    --category-work: 40 90% 55%;
+    --category-personal: 200 85% 55%;
+    --category-friends: 330 85% 65%;
+    --category-health: 150 75% 50%;
+    --category-finance: 262 75% 60%;
+    --category-default: 262 83% 65%;
+
+    --sidebar-background: 240 10% 8%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 262 83% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 8% 16%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 240 8% 18%;
+    --sidebar-ring: 262 83% 65%;
   }
 }
 
@@ -78,7 +134,7 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground font-sans antialiased transition-colors duration-300;
     font-family: 'Inter', system-ui, sans-serif;
   }
 
@@ -89,17 +145,17 @@
 
 @layer components {
   .glass {
-    @apply bg-card/60 backdrop-blur-xl border border-border/30;
+    @apply bg-card/70 backdrop-blur-xl border border-border/50;
     box-shadow: var(--shadow-glass);
   }
 
   .glass-strong {
-    @apply bg-card/80 backdrop-blur-2xl border border-border/40;
+    @apply bg-card/85 backdrop-blur-2xl border border-border/60;
     box-shadow: var(--shadow-glass);
   }
 
   .glass-subtle {
-    @apply bg-card/40 backdrop-blur-lg border border-border/20;
+    @apply bg-card/50 backdrop-blur-lg border border-border/30;
   }
 
   .gradient-text {
@@ -143,30 +199,6 @@
 
   .glow:hover::after {
     opacity: 0.5;
-  }
-
-  .category-work {
-    --category-color: var(--category-work);
-  }
-
-  .category-personal {
-    --category-color: var(--category-personal);
-  }
-
-  .category-friends {
-    --category-color: var(--category-friends);
-  }
-
-  .category-health {
-    --category-color: var(--category-health);
-  }
-
-  .category-finance {
-    --category-color: var(--category-finance);
-  }
-
-  .category-default {
-    --category-color: var(--category-default);
   }
 }
 
@@ -215,7 +247,7 @@
   }
 }
 
-/* Custom scrollbar for non-hidden areas */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

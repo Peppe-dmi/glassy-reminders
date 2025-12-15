@@ -3,8 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useReminders } from '@/contexts/ReminderContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { ReminderItem } from './ReminderItem';
 import { AddReminderDialog } from './AddReminderDialog';
+import { ThemeToggle } from './ThemeToggle';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns';
 import { it } from 'date-fns/locale';
 
@@ -21,6 +23,7 @@ export function CategoryView() {
   const { categoryId } = useParams<{ categoryId: string }>();
   const navigate = useNavigate();
   const { categories, getRemindersByCategory } = useReminders();
+  const { theme } = useTheme();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showAddReminder, setShowAddReminder] = useState(false);
@@ -53,11 +56,15 @@ export function CategoryView() {
   }
 
   return (
-    <div className="min-h-screen bg-background relative">
+    <div className="min-h-screen bg-background relative transition-colors duration-300">
       {/* Background Effects */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className={`absolute top-0 right-0 w-80 h-80 ${colorClasses[category.color]} opacity-10 rounded-full blur-[120px]`} />
-        <div className="absolute bottom-1/3 left-1/4 w-64 h-64 bg-primary/10 rounded-full blur-[100px]" />
+        <div className={`absolute top-0 right-0 w-80 h-80 ${colorClasses[category.color]} rounded-full blur-[120px] ${
+          theme === 'dark' ? 'opacity-15' : 'opacity-10'
+        }`} />
+        <div className={`absolute bottom-1/3 left-1/4 w-64 h-64 bg-primary rounded-full blur-[100px] ${
+          theme === 'dark' ? 'opacity-10' : 'opacity-8'
+        }`} />
       </div>
 
       {/* Header */}
@@ -68,7 +75,7 @@ export function CategoryView() {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => navigate('/')}
-              className="p-2 rounded-xl hover:bg-muted transition-colors"
+              className="p-2 rounded-xl hover:bg-primary/10 transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
             </motion.button>
@@ -81,6 +88,7 @@ export function CategoryView() {
                 </p>
               </div>
             </div>
+            <ThemeToggle />
           </div>
         </div>
       </header>
@@ -97,7 +105,7 @@ export function CategoryView() {
           <div className="flex items-center justify-between mb-4">
             <button
               onClick={() => setCurrentMonth(prev => subMonths(prev, 1))}
-              className="p-2 rounded-xl hover:bg-muted transition-colors"
+              className="p-2 rounded-xl hover:bg-primary/10 transition-colors"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
@@ -106,7 +114,7 @@ export function CategoryView() {
             </h2>
             <button
               onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}
-              className="p-2 rounded-xl hover:bg-muted transition-colors"
+              className="p-2 rounded-xl hover:bg-primary/10 transition-colors"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
@@ -138,9 +146,9 @@ export function CategoryView() {
                   className={`
                     relative aspect-square rounded-xl flex flex-col items-center justify-center text-sm transition-all
                     ${!isCurrentMonth ? 'text-muted-foreground/40' : ''}
-                    ${isSelected ? `${colorClasses[category.color]} text-background font-bold` : ''}
+                    ${isSelected ? `${colorClasses[category.color]} text-white font-bold` : ''}
                     ${isToday && !isSelected ? 'ring-2 ring-primary' : ''}
-                    ${!isSelected ? 'hover:bg-muted' : ''}
+                    ${!isSelected ? 'hover:bg-primary/10' : ''}
                   `}
                 >
                   <span>{format(day, 'd')}</span>
@@ -223,7 +231,7 @@ export function CategoryView() {
         onClick={() => setShowAddReminder(true)}
         className={`fixed bottom-6 right-6 w-14 h-14 rounded-2xl ${colorClasses[category.color]} shadow-lg flex items-center justify-center z-20`}
       >
-        <Plus className="w-6 h-6 text-background" />
+        <Plus className="w-6 h-6 text-white" />
       </motion.button>
 
       <AddReminderDialog
