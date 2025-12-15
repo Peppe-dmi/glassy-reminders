@@ -1,12 +1,26 @@
 import { useCallback, useEffect, useState } from 'react';
 import { LocalNotifications, ScheduleOptions, LocalNotificationSchema } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
+import { RingtoneType, playRingtone, vibrateDevice } from './useNotificationSettings';
 
 interface NativeNotificationOptions {
   id: string;
   title: string;
   body: string;
   scheduledAt: Date;
+}
+
+// Get notification settings from localStorage
+function getNotificationSettings() {
+  try {
+    const stored = localStorage.getItem('notification-settings');
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.log('Error reading notification settings');
+  }
+  return { vibrationEnabled: true, ringtone: 'default' };
 }
 
 export function useNativeNotifications() {
@@ -63,6 +77,7 @@ export function useNativeNotifications() {
 
   const scheduleNotification = useCallback(async (options: NativeNotificationOptions) => {
     const notificationId = hashStringToNumber(options.id);
+    const settings = getNotificationSettings();
     
     if (!isNative) {
       // Fallback to web notification with setTimeout
@@ -78,9 +93,16 @@ export function useNativeNotifications() {
               icon: '/icon-192.png',
               tag: options.id,
               requireInteraction: true,
+              silent: settings.ringtone === 'silent',
             });
-            playNotificationSound();
-            vibrateDevice();
+            // Play selected ringtone
+            if (settings.ringtone !== 'silent') {
+              playRingtone(settings.ringtone as RingtoneType);
+            }
+            // Vibrate if enabled
+            if (settings.vibrationEnabled) {
+              vibrateDevice(true);
+            }
           }
         }, delay);
       }
@@ -88,20 +110,25 @@ export function useNativeNotifications() {
     }
 
     try {
+      // Choose channel based on settings
+      const channelId = settings.vibrationEnabled ? 'promemoria-vibration' : 'promemoria-silent';
+      
       const notification: LocalNotificationSchema = {
         id: notificationId,
         title: options.title,
         body: options.body,
         schedule: {
           at: options.scheduledAt,
-          allowWhileIdle: true, // Important: allows notification even in Doze mode
+          allowWhileIdle: true,
         },
-        sound: 'default',
+        sound: settings.ringtone === 'silent' ? undefined : 'default',
         smallIcon: 'ic_notification',
         largeIcon: 'ic_launcher',
-        channelId: 'promemoria-channel',
+        channelId: channelId,
         extra: {
           reminderId: options.id,
+          ringtone: settings.ringtone,
+          vibration: settings.vibrationEnabled,
         },
       };
 
@@ -114,6 +141,8 @@ export function useNativeNotifications() {
         id: notificationId,
         title: options.title,
         at: options.scheduledAt.toLocaleString(),
+        vibration: settings.vibrationEnabled,
+        ringtone: settings.ringtone,
       });
 
       return notificationId;
@@ -159,56 +188,79 @@ export function useNativeNotifications() {
 
   const testNotification = useCallback(async () => {
     const now = new Date();
-    const scheduledAt = new Date(now.getTime() + 5000); // 5 seconds from now
+    const scheduledAt = new Date(now.getTime() + 3000); // 3 seconds from now
 
     const result = await scheduleNotification({
       id: `test-${Date.now()}`,
       title: '🧪 Test Notifica',
-      body: 'Le notifiche native funzionano! 🎉',
+      body: 'Le notifiche funzionano! 🎉',
       scheduledAt,
     });
 
     return !!result;
   }, [scheduleNotification]);
 
-  // Setup notification channel for Android
+  // Setup notification channels for Android
   useEffect(() => {
     if (isNative) {
-      setupNotificationChannel();
+      setupNotificationChannels();
       setupNotificationListeners();
     }
   }, [isNative]);
 
-  const setupNotificationChannel = async () => {
+  const setupNotificationChannels = async () => {
     try {
+      // Channel with vibration
       await LocalNotifications.createChannel({
-        id: 'promemoria-channel',
-        name: 'Promemoria',
-        description: 'Notifiche per i tuoi promemoria',
-        importance: 5, // Max importance
-        visibility: 1, // Public
+        id: 'promemoria-vibration',
+        name: 'Promemoria (con vibrazione)',
+        description: 'Notifiche con suono e vibrazione',
+        importance: 5,
+        visibility: 1,
         sound: 'default',
         vibration: true,
         lights: true,
         lightColor: '#667eea',
       });
-      console.log('📢 Canale notifiche creato');
+
+      // Channel without vibration
+      await LocalNotifications.createChannel({
+        id: 'promemoria-silent',
+        name: 'Promemoria (senza vibrazione)',
+        description: 'Notifiche solo con suono',
+        importance: 5,
+        visibility: 1,
+        sound: 'default',
+        vibration: false,
+        lights: true,
+        lightColor: '#667eea',
+      });
+
+      console.log('📢 Canali notifiche creati');
     } catch (error) {
       console.log('Canale già esistente o errore:', error);
     }
   };
 
   const setupNotificationListeners = () => {
+    // When notification is received (app in foreground)
     LocalNotifications.addListener('localNotificationReceived', (notification) => {
       console.log('🔔 Notifica ricevuta:', notification);
+      
+      // Play custom sound when notification arrives (for foreground)
+      const settings = getNotificationSettings();
+      if (settings.ringtone !== 'silent') {
+        playRingtone(settings.ringtone as RingtoneType);
+      }
+      if (settings.vibrationEnabled) {
+        vibrateDevice(true);
+      }
     });
 
     LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
       console.log('👆 Azione su notifica:', action);
-      // Navigate to the reminder if needed
       const reminderId = action.notification.extra?.reminderId;
       if (reminderId) {
-        // Could dispatch an event or use navigation
         window.dispatchEvent(new CustomEvent('notification-clicked', { 
           detail: { reminderId } 
         }));
@@ -233,39 +285,7 @@ function hashStringToNumber(str: string): number {
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
+    hash = hash & hash;
   }
   return Math.abs(hash);
 }
-
-// Sound and vibration helpers for web fallback
-function playNotificationSound() {
-  try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const playTone = (freq: number, startTime: number, duration: number) => {
-      const osc = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-      osc.connect(gain);
-      gain.connect(audioContext.destination);
-      osc.frequency.value = freq;
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0.5, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-      osc.start(startTime);
-      osc.stop(startTime + duration);
-    };
-    const now = audioContext.currentTime;
-    playTone(880, now, 0.15);
-    playTone(1108, now + 0.15, 0.15);
-    playTone(1318, now + 0.3, 0.25);
-  } catch (e) {
-    console.log('Audio not supported');
-  }
-}
-
-function vibrateDevice() {
-  if ('vibrate' in navigator) {
-    navigator.vibrate([200, 100, 200, 100, 300]);
-  }
-}
-
