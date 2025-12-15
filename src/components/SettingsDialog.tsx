@@ -1,10 +1,11 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Download, Upload, Bell, BellOff, Trash2 } from 'lucide-react';
+import { X, Download, Upload, Bell, BellOff, Trash2, Volume2, Vibrate } from 'lucide-react';
 import { useReminders } from '@/contexts/ReminderContext';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useRef, useState } from 'react';
 import { useNativeNotifications } from '@/hooks/useNativeNotifications';
+import { useNotificationSettings, RINGTONE_OPTIONS } from '@/hooks/useNotificationSettings';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -28,6 +29,14 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     testNotification,
     isNative 
   } = useNativeNotifications();
+
+  // Notification settings
+  const {
+    settings: notifSettings,
+    setVibrationEnabled,
+    setRingtone,
+    playPreview,
+  } = useNotificationSettings();
 
   const handleExport = () => {
     const data = exportData();
@@ -121,7 +130,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-background/80 backdrop-blur-sm safe-area-all"
           onClick={() => onOpenChange(false)}
         >
           <motion.div
@@ -129,7 +138,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 100, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="glass-strong w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 max-h-[85vh] overflow-y-auto"
+            className="glass-strong w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 max-h-[85vh] overflow-y-auto safe-area-bottom"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
@@ -186,6 +195,64 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                       </Button>
                     </>
                   )}
+                </div>
+              </div>
+
+              {/* Vibration */}
+              <div className="space-y-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Vibrate className="w-4 h-4" /> Vibrazione
+                </h3>
+                <div className="glass-subtle rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <span>Vibra alla notifica</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVibrationEnabled(!notifSettings.vibrationEnabled);
+                        if (!notifSettings.vibrationEnabled && 'vibrate' in navigator) {
+                          navigator.vibrate([100, 50, 100]);
+                        }
+                      }}
+                      className={`relative w-12 h-7 rounded-full transition-colors ${
+                        notifSettings.vibrationEnabled ? 'bg-primary' : 'bg-muted'
+                      }`}
+                    >
+                      <motion.div
+                        animate={{ x: notifSettings.vibrationEnabled ? 20 : 2 }}
+                        className="absolute top-1 w-5 h-5 rounded-full bg-foreground"
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ringtone */}
+              <div className="space-y-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Volume2 className="w-4 h-4" /> Suoneria
+                </h3>
+                <div className="glass-subtle rounded-xl p-4">
+                  <div className="grid grid-cols-2 gap-2">
+                    {RINGTONE_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setRingtone(option.value);
+                          playPreview(option.value);
+                        }}
+                        className={`p-3 rounded-xl text-sm transition-all flex items-center gap-2 ${
+                          notifSettings.ringtone === option.value
+                            ? 'glass-strong ring-2 ring-primary'
+                            : 'glass hover:bg-muted'
+                        }`}
+                      >
+                        <span className="text-lg">{option.emoji}</span>
+                        <span>{option.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 

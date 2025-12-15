@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Bell, BellOff, Calendar as CalendarIcon, Repeat } from 'lucide-react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Reminder, RecurrenceType } from '@/types/reminder';
 import { useReminders } from '@/contexts/ReminderContext';
+import { useNativeNotifications } from '@/hooks/useNativeNotifications';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,24 +38,36 @@ const recurrenceOptions: { value: RecurrenceType; label: string; icon: string }[
   { value: 'yearly', label: 'Ogni anno', icon: '🎂' },
 ];
 
+// Generate hours and minutes for scroll picker
+const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+const minutes = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
+
 export function EditReminderDialog({ reminder, open, onOpenChange }: EditReminderDialogProps) {
-  const { updateReminder, notificationPermission, requestNotificationPermission } = useReminders();
+  const { updateReminder } = useReminders();
+  const { hasPermission, requestPermission } = useNativeNotifications();
   
   const [title, setTitle] = useState(reminder.title);
   const [description, setDescription] = useState(reminder.description || '');
   const [date, setDate] = useState<Date | undefined>(new Date(reminder.date));
-  const [time, setTime] = useState(reminder.time || '');
+  const [selectedHour, setSelectedHour] = useState(reminder.time ? reminder.time.split(':')[0] : '09');
+  const [selectedMinute, setSelectedMinute] = useState(reminder.time ? reminder.time.split(':')[1] : '00');
+  const [hasTime, setHasTime] = useState(!!reminder.time);
   const [isAlarmEnabled, setIsAlarmEnabled] = useState(reminder.isAlarmEnabled);
   const [alarmMinutesBefore, setAlarmMinutesBefore] = useState(reminder.alarmMinutesBefore);
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>(reminder.priority);
   const [recurrence, setRecurrence] = useState<RecurrenceType>(reminder.recurrence || 'none');
+
+  const hourRef = useRef<HTMLDivElement>(null);
+  const minuteRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) {
       setTitle(reminder.title);
       setDescription(reminder.description || '');
       setDate(new Date(reminder.date));
-      setTime(reminder.time || '');
+      setSelectedHour(reminder.time ? reminder.time.split(':')[0] : '09');
+      setSelectedMinute(reminder.time ? reminder.time.split(':')[1] : '00');
+      setHasTime(!!reminder.time);
       setIsAlarmEnabled(reminder.isAlarmEnabled);
       setAlarmMinutesBefore(reminder.alarmMinutesBefore);
       setPriority(reminder.priority);
@@ -62,9 +75,7 @@ export function EditReminderDialog({ reminder, open, onOpenChange }: EditReminde
     }
   }, [open, reminder]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSubmit = async () => {
     if (!title.trim()) {
       toast.error('Inserisci un titolo');
       return;
@@ -75,19 +86,21 @@ export function EditReminderDialog({ reminder, open, onOpenChange }: EditReminde
       return;
     }
 
-    if (isAlarmEnabled && notificationPermission !== 'granted') {
-      const granted = await requestNotificationPermission();
+    if (isAlarmEnabled && !hasPermission) {
+      const granted = await requestPermission();
       if (!granted) {
-        toast.error('Notifiche non autorizzate');
+        toast.error('Abilita le notifiche nelle impostazioni del telefono');
       }
     }
+
+    const time = hasTime ? `${selectedHour}:${selectedMinute}` : undefined;
 
     updateReminder(reminder.id, {
       title: title.trim(),
       description: description.trim() || undefined,
       date,
-      time: time || undefined,
-      isAlarmEnabled: isAlarmEnabled && notificationPermission === 'granted',
+      time,
+      isAlarmEnabled: isAlarmEnabled && hasPermission,
       alarmMinutesBefore,
       priority,
       recurrence,
@@ -97,6 +110,14 @@ export function EditReminderDialog({ reminder, open, onOpenChange }: EditReminde
     onOpenChange(false);
   };
 
+  const scrollToCenter = (ref: React.RefObject<HTMLDivElement>, value: string, items: string[]) => {
+    if (ref.current) {
+      const index = items.indexOf(value);
+      const itemHeight = 48;
+      ref.current.scrollTop = index * itemHeight;
+    }
+  };
+
   return (
     <AnimatePresence>
       {open && (
@@ -104,7 +125,7 @@ export function EditReminderDialog({ reminder, open, onOpenChange }: EditReminde
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-background/80 backdrop-blur-sm"
           onClick={() => onOpenChange(false)}
         >
           <motion.div
@@ -112,7 +133,7 @@ export function EditReminderDialog({ reminder, open, onOpenChange }: EditReminde
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 100, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="glass-strong w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 max-h-[90vh] overflow-y-auto"
+            className="glass-strong w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 max-h-[90vh] overflow-y-auto safe-area-bottom"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
@@ -125,7 +146,7 @@ export function EditReminderDialog({ reminder, open, onOpenChange }: EditReminde
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="edit-title">Titolo</Label>
                 <Input
@@ -146,44 +167,127 @@ export function EditReminderDialog({ reminder, open, onOpenChange }: EditReminde
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Data</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal glass border-border/50",
-                          !date && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date ? format(date, "d MMM", { locale: it }) : "Seleziona"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 glass border-border/50" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={date}
-                        onSelect={setDate}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
+              {/* Date */}
+              <div className="space-y-2">
+                <Label>Data</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal glass border-border/50",
+                        !date && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {date ? format(date, "EEEE d MMMM yyyy", { locale: it }) : "Seleziona data"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 glass border-border/50" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={setDate}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Time Toggle */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Imposta orario</Label>
+                  <button
+                    type="button"
+                    onClick={() => setHasTime(!hasTime)}
+                    className={`relative w-12 h-7 rounded-full transition-colors ${
+                      hasTime ? 'bg-primary' : 'bg-muted'
+                    }`}
+                  >
+                    <motion.div
+                      animate={{ x: hasTime ? 20 : 2 }}
+                      className="absolute top-1 w-5 h-5 rounded-full bg-foreground"
+                    />
+                  </button>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-time">Ora</Label>
-                  <Input
-                    id="edit-time"
-                    type="time"
-                    value={time}
-                    onChange={e => setTime(e.target.value)}
-                    className="glass border-border/50"
-                  />
-                </div>
+                {/* Time Picker - Android Style Scroll */}
+                {hasTime && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex justify-center gap-4"
+                  >
+                    <div className="relative">
+                      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-12 bg-primary/20 rounded-xl pointer-events-none z-10" />
+                      <div
+                        ref={hourRef}
+                        className="h-36 overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
+                        style={{ scrollSnapType: 'y mandatory' }}
+                        onScroll={(e) => {
+                          const scrollTop = e.currentTarget.scrollTop;
+                          const index = Math.round(scrollTop / 48);
+                          if (hours[index]) setSelectedHour(hours[index]);
+                        }}
+                      >
+                        <div className="h-12" />
+                        {hours.map((h) => (
+                          <div
+                            key={h}
+                            className={cn(
+                              "h-12 w-20 flex items-center justify-center text-2xl font-bold snap-center transition-all",
+                              selectedHour === h ? "text-primary scale-110" : "text-muted-foreground"
+                            )}
+                            onClick={() => {
+                              setSelectedHour(h);
+                              scrollToCenter(hourRef, h, hours);
+                            }}
+                          >
+                            {h}
+                          </div>
+                        ))}
+                        <div className="h-12" />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center text-3xl font-bold">:</div>
+
+                    <div className="relative">
+                      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-12 bg-primary/20 rounded-xl pointer-events-none z-10" />
+                      <div
+                        ref={minuteRef}
+                        className="h-36 overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
+                        style={{ scrollSnapType: 'y mandatory' }}
+                        onScroll={(e) => {
+                          const scrollTop = e.currentTarget.scrollTop;
+                          const index = Math.round(scrollTop / 48);
+                          if (minutes[index]) setSelectedMinute(minutes[index]);
+                        }}
+                      >
+                        <div className="h-12" />
+                        {minutes.map((m) => (
+                          <div
+                            key={m}
+                            className={cn(
+                              "h-12 w-20 flex items-center justify-center text-2xl font-bold snap-center transition-all",
+                              selectedMinute === m ? "text-primary scale-110" : "text-muted-foreground"
+                            )}
+                            onClick={() => {
+                              setSelectedMinute(m);
+                              scrollToCenter(minuteRef, m, minutes);
+                            }}
+                          >
+                            {m}
+                          </div>
+                        ))}
+                        <div className="h-12" />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -278,10 +382,14 @@ export function EditReminderDialog({ reminder, open, onOpenChange }: EditReminde
                 )}
               </div>
 
-              <Button type="submit" className="w-full">
-                Salva Modifiche
+              <Button 
+                type="button"
+                onClick={handleSubmit} 
+                className="w-full glow py-6 text-lg"
+              >
+                ✓ Salva Modifiche
               </Button>
-            </form>
+            </div>
           </motion.div>
         </motion.div>
       )}

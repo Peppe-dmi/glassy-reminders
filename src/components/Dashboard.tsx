@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Plus, Calendar, Bell, Settings } from 'lucide-react';
 import { useReminders } from '@/contexts/ReminderContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useNativeNotifications } from '@/hooks/useNativeNotifications';
 import { CategoryCard } from './CategoryCard';
 import { AddCategoryDialog } from './AddCategoryDialog';
 import { SettingsDialog } from './SettingsDialog';
@@ -12,13 +13,14 @@ import { StatsCard } from './StatsCard';
 import { useState, useMemo } from 'react';
 
 export function Dashboard() {
-  const { categories, reminders, notificationPermission, requestNotificationPermission } = useReminders();
+  const { categories, reminders } = useReminders();
   const { theme } = useTheme();
+  const { hasPermission, requestPermission } = useNativeNotifications();
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
   const handleEnableNotifications = async () => {
-    await requestNotificationPermission();
+    await requestPermission();
   };
 
   const todayReminders = useMemo(() => {
@@ -41,8 +43,8 @@ export function Dashboard() {
         }`} style={{ animationDelay: '4s' }} />
       </div>
 
-      {/* Header */}
-      <header className="relative z-10 glass-subtle sticky top-0">
+      {/* Header with safe area */}
+      <header className="relative z-10 glass-subtle sticky top-0 safe-area-top">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between gap-4">
             <motion.div
@@ -72,7 +74,7 @@ export function Dashboard() {
             </motion.div>
 
             <div className="flex items-center gap-2">
-              {notificationPermission !== 'granted' && (
+              {!hasPermission && (
                 <motion.button
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -108,7 +110,7 @@ export function Dashboard() {
       </header>
 
       {/* Main Content */}
-      <main className="relative z-10 container mx-auto px-4 py-6 pb-24">
+      <main className="relative z-10 container mx-auto px-4 py-6 pb-24 safe-area-bottom">
         {/* Today Widget */}
         <TodayWidget />
 

@@ -67,8 +67,8 @@ export function CategoryView() {
         }`} />
       </div>
 
-      {/* Header */}
-      <header className="relative z-10 glass-subtle sticky top-0">
+      {/* Header with safe area */}
+      <header className="relative z-10 glass-subtle sticky top-0 safe-area-top">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
             <motion.button
@@ -94,7 +94,7 @@ export function CategoryView() {
       </header>
 
       {/* Main Content */}
-      <main className="relative z-10 container mx-auto px-4 py-6 pb-24">
+      <main className="relative z-10 container mx-auto px-4 py-6 pb-24 safe-area-bottom">
         {/* Calendar */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

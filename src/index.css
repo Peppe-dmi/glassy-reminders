@@ -266,3 +266,37 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--primary) / 0.7);
 }
+
+/* Safe area for mobile devices (notch, status bar, etc.) */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-all {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Android status bar spacing */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .safe-area-top {
+    padding-top: max(env(safe-area-inset-top), 24px);
+  }
+}
+
+/* For Android without safe-area support, add manual padding */
+@media screen and (max-width: 768px) {
+  html {
+    --status-bar-height: 24px;
+  }
+  
+  .status-bar-padding {
+    padding-top: var(--status-bar-height);
+  }
+}
