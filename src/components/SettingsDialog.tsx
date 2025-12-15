@@ -16,7 +16,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     importData, 
     importCategory, 
     notificationPermission, 
-    requestNotificationPermission 
+    requestNotificationPermission,
+    testNotification 
   } = useReminders();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const categoryInputRef = useRef<HTMLInputElement>(null);
@@ -120,20 +121,49 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 <h3 className="font-semibold flex items-center gap-2">
                   <Bell className="w-4 h-4" /> Notifiche
                 </h3>
-                <div className="glass-subtle rounded-xl p-4">
+                <div className="glass-subtle rounded-xl p-4 space-y-3">
                   {notificationPermission === 'granted' ? (
-                    <div className="flex items-center gap-3 text-green-400">
-                      <Bell className="w-5 h-5" />
-                      <span>Notifiche attive</span>
-                    </div>
+                    <>
+                      <div className="flex items-center gap-3 text-green-500">
+                        <Bell className="w-5 h-5" />
+                        <span>Notifiche attive</span>
+                      </div>
+                      <Button
+                        onClick={() => {
+                          const success = testNotification();
+                          if (success) {
+                            toast.success('Notifica di test inviata!');
+                          } else {
+                            toast.error('Errore nell\'invio della notifica');
+                          }
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                      >
+                        🔔 Testa notifica
+                      </Button>
+                    </>
                   ) : notificationPermission === 'denied' ? (
-                    <div className="flex items-center gap-3 text-destructive">
-                      <BellOff className="w-5 h-5" />
-                      <span>Notifiche bloccate nel browser</span>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3 text-destructive">
+                        <BellOff className="w-5 h-5" />
+                        <span>Notifiche bloccate</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Per abilitarle, clicca sull'icona del lucchetto 🔒 nella barra degli indirizzi e abilita le notifiche
+                      </p>
                     </div>
                   ) : (
                     <Button
-                      onClick={requestNotificationPermission}
+                      onClick={async () => {
+                        const granted = await requestNotificationPermission();
+                        if (granted) {
+                          toast.success('Notifiche abilitate!');
+                        } else {
+                          toast.error('Permesso negato');
+                        }
+                      }}
                       variant="outline"
                       className="w-full"
                     >

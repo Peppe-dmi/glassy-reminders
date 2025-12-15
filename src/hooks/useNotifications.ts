@@ -1,8 +1,13 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Reminder } from '@/types/reminder';
 
 export function useNotifications() {
   const scheduledNotifications = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const [permissionState, setPermissionState] = useState<NotificationPermission>(
+    typeof window !== 'undefined' && 'Notification' in window 
+      ? Notification.permission 
+      : 'denied'
+  );
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (!('Notification' in window)) {
@@ -11,39 +16,82 @@ export function useNotifications() {
     }
 
     if (Notification.permission === 'granted') {
+      setPermissionState('granted');
       return true;
     }
 
     if (Notification.permission !== 'denied') {
       const permission = await Notification.requestPermission();
+      setPermissionState(permission);
       return permission === 'granted';
     }
 
+    setPermissionState('denied');
     return false;
   }, []);
 
   const sendNotification = useCallback((title: string, body: string, icon?: string) => {
-    if (Notification.permission === 'granted') {
-      const notification = new Notification(title, {
-        body,
-        icon: icon || '/favicon.ico',
-        tag: `reminder-${Date.now()}`,
-        requireInteraction: true,
-      });
-
-      notification.onclick = () => {
-        window.focus();
-        notification.close();
-      };
-
-      // Also play a sound
+    if (permissionState === 'granted') {
       try {
-        const audio = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU');
-        audio.volume = 0.5;
-        audio.play().catch(() => {});
-      } catch (e) {
-        // Audio not supported
+        const notification = new Notification(title, {
+          body,
+          icon: icon || '/favicon.ico',
+          tag: `reminder-${Date.now()}`,
+          requireInteraction: true,
+          silent: false,
+        });
+
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+
+        // Play notification sound
+        playNotificationSound();
+        
+        console.log('✅ Notifica inviata:', title);
+      } catch (error) {
+        console.error('❌ Errore invio notifica:', error);
       }
+    } else {
+      console.warn('⚠️ Notifiche non autorizzate:', permissionState);
+    }
+  }, [permissionState]);
+
+  const playNotificationSound = useCallback(() => {
+    try {
+      // Create a simple beep using Web Audio API
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.value = 800;
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+      
+      // Second beep
+      setTimeout(() => {
+        const osc2 = audioContext.createOscillator();
+        const gain2 = audioContext.createGain();
+        osc2.connect(gain2);
+        gain2.connect(audioContext.destination);
+        osc2.frequency.value = 1000;
+        osc2.type = 'sine';
+        gain2.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        osc2.start(audioContext.currentTime);
+        osc2.stop(audioContext.currentTime + 0.2);
+      }, 150);
+    } catch (e) {
+      console.log('Audio not supported');
     }
   }, []);
 
@@ -102,15 +150,26 @@ export function useNotifications() {
     };
   }, [cancelAllNotifications]);
 
+  // Test function to verify notifications work
+  const testNotification = useCallback(() => {
+    if (permissionState === 'granted') {
+      sendNotification(
+        '🔔 Test Notifica',
+        'Le notifiche funzionano correttamente!'
+      );
+      return true;
+    }
+    return false;
+  }, [permissionState, sendNotification]);
+
   return {
     requestPermission,
     sendNotification,
     scheduleNotification,
     cancelNotification,
     cancelAllNotifications,
+    testNotification,
     isSupported: 'Notification' in window,
-    permission: typeof window !== 'undefined' && 'Notification' in window 
-      ? Notification.permission 
-      : 'denied',
+    permission: permissionState,
   };
 }

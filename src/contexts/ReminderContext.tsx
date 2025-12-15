@@ -39,6 +39,7 @@ interface ReminderContextType {
   exportCategory: (categoryId: string) => string;
   importCategory: (jsonString: string) => boolean;
   requestNotificationPermission: () => Promise<boolean>;
+  testNotification: () => boolean;
   notificationPermission: NotificationPermission | 'denied';
 }
 
@@ -57,7 +58,8 @@ export function ReminderProvider({ children }: { children: React.ReactNode }) {
     requestPermission, 
     scheduleNotification, 
     cancelNotification, 
-    permission 
+    permission,
+    testNotification 
   } = useNotifications();
 
   // Schedule notifications for all reminders on load
@@ -449,6 +451,7 @@ export function ReminderProvider({ children }: { children: React.ReactNode }) {
         exportCategory,
         importCategory,
         requestNotificationPermission,
+        testNotification,
         notificationPermission: permission,
       }}
     >
