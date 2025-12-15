@@ -1,9 +1,7 @@
-import React, { createContext, useContext, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Category, Reminder, ExportData, CategoryColor, RecurrenceType } from '@/types/reminder';
+import { Category, Reminder, ExportData, CategoryColor } from '@/types/reminder';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { useNotifications } from '@/hooks/useNotifications';
-import { useNtfy } from '@/hooks/useNtfy';
 import { useNativeNotifications } from '@/hooks/useNativeNotifications';
 import { addDays, addWeeks, addMonths, addYears, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isSameDay, startOfDay, endOfDay } from 'date-fns';
 
@@ -40,9 +38,6 @@ interface ReminderContextType {
   importData: (data: ExportData) => boolean;
   exportCategory: (categoryId: string) => string;
   importCategory: (jsonString: string) => boolean;
-  requestNotificationPermission: () => Promise<boolean>;
-  testNotification: () => boolean;
-  notificationPermission: NotificationPermission | 'denied';
 }
 
 const ReminderContext = createContext<ReminderContextType | undefined>(undefined);
@@ -57,20 +52,11 @@ export function ReminderProvider({ children }: { children: React.ReactNode }) {
   const [categories, setCategories] = useLocalStorage<Category[]>('reminder-categories', defaultCategories);
   const [reminders, setReminders] = useLocalStorage<Reminder[]>('reminder-items', []);
   const { 
-    requestPermission, 
-    scheduleNotification: scheduleLocalNotification, 
-    cancelNotification, 
-    permission,
-    testNotification 
-  } = useNotifications();
-  const { scheduleNotification: scheduleNtfyNotification, isEnabled: ntfyEnabled } = useNtfy();
-  const { 
-    isNative, 
     scheduleNotification: scheduleNativeNotification, 
-    cancelNotification: cancelNativeNotification 
+    cancelNotification 
   } = useNativeNotifications();
   
-  // Combined notification function that uses native, ntfy, or web notifications
+  // Schedule notification using native Capacitor notifications
   const scheduleNotification = useCallback((reminder: Reminder, categoryName: string) => {
     if (!reminder.isAlarmEnabled) return;
     
@@ -84,36 +70,16 @@ export function ReminderProvider({ children }: { children: React.ReactNode }) {
     // Calculate notification time (subtract alarm minutes before)
     const notificationTime = new Date(reminderDate.getTime() - (reminder.alarmMinutesBefore * 60 * 1000));
     
-    // Priority 1: Native notifications (Capacitor app)
-    if (isNative) {
-      scheduleNativeNotification({
-        id: reminder.id,
-        title: `⏰ ${categoryName}: ${reminder.title}`,
-        body: reminder.description || 'Hai un promemoria!',
-        scheduledAt: notificationTime,
-      });
-      console.log(`📱 Notifica NATIVA programmata per: ${notificationTime.toLocaleString()}`);
-      return;
-    }
+    // Schedule native notification
+    scheduleNativeNotification({
+      id: reminder.id,
+      title: `⏰ ${categoryName}: ${reminder.title}`,
+      body: reminder.description || 'Hai un promemoria!',
+      scheduledAt: notificationTime,
+    });
+    console.log(`📱 Notifica programmata per: ${notificationTime.toLocaleString()}`);
     
-    // Priority 2: ntfy notifications (works with app closed on web)
-    if (ntfyEnabled) {
-      const priority = reminder.priority === 'high' ? 5 : reminder.priority === 'medium' ? 4 : 3;
-      scheduleNtfyNotification(
-        `⏰ ${categoryName}: ${reminder.title}`,
-        reminder.description || 'Hai un promemoria!',
-        notificationTime,
-        priority,
-        reminder.id
-      );
-      console.log(`📤 Notifica ntfy programmata per: ${notificationTime.toLocaleString()}`);
-    }
-    
-    // Priority 3: Web notifications (fallback, only works with app open)
-    scheduleLocalNotification(reminder, categoryName);
-    console.log(`🌐 Notifica web programmata per: ${notificationTime.toLocaleString()}`);
-    
-  }, [scheduleLocalNotification, scheduleNtfyNotification, ntfyEnabled, isNative, scheduleNativeNotification]);
+  }, [scheduleNativeNotification]);
 
   // Schedule notifications for all reminders on load
   useEffect(() => {
@@ -474,10 +440,6 @@ export function ReminderProvider({ children }: { children: React.ReactNode }) {
     }
   }, [setCategories, setReminders]);
 
-  const requestNotificationPermission = useCallback(async (): Promise<boolean> => {
-    return requestPermission();
-  }, [requestPermission]);
-
   return (
     <ReminderContext.Provider
       value={{
@@ -503,9 +465,6 @@ export function ReminderProvider({ children }: { children: React.ReactNode }) {
         importData,
         exportCategory,
         importCategory,
-        requestNotificationPermission,
-        testNotification,
-        notificationPermission: permission,
       }}
     >
       {children}
