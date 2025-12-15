@@ -1,9 +1,11 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Download, Upload, Bell, BellOff, Trash2 } from 'lucide-react';
+import { X, Download, Upload, Bell, BellOff, Trash2, Smartphone, ExternalLink, Copy, Check } from 'lucide-react';
 import { useReminders } from '@/contexts/ReminderContext';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import { useNtfy } from '@/hooks/useNtfy';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -21,6 +23,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   } = useReminders();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const categoryInputRef = useRef<HTMLInputElement>(null);
+  
+  // ntfy.sh integration
+  const { config: ntfyConfig, enableNtfy, disableNtfy, testNotification: testNtfy, generateTopic, isEnabled: ntfyEnabled } = useNtfy();
+  const [ntfyTopic, setNtfyTopic] = useState(ntfyConfig.topic || '');
+  const [copied, setCopied] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   const handleExport = () => {
     const data = exportData();
@@ -169,6 +177,149 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     >
                       Attiva notifiche
                     </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Push Notifications via ntfy.sh */}
+              <div className="space-y-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Smartphone className="w-4 h-4" /> Notifiche Push (Mobile)
+                </h3>
+                <div className="glass-subtle rounded-xl p-4 space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    📱 Ricevi notifiche <strong>anche con l'app chiusa</strong> tramite <a href="https://ntfy.sh" target="_blank" rel="noopener" className="text-primary underline">ntfy.sh</a> (gratis!)
+                  </p>
+                  
+                  {!ntfyEnabled ? (
+                    <>
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium">1. Installa l'app ntfy:</p>
+                        <div className="flex gap-2">
+                          <a 
+                            href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" 
+                            target="_blank" 
+                            rel="noopener"
+                            className="flex-1"
+                          >
+                            <Button variant="outline" size="sm" className="w-full text-xs">
+                              🤖 Android
+                              <ExternalLink className="w-3 h-3 ml-1" />
+                            </Button>
+                          </a>
+                          <a 
+                            href="https://apps.apple.com/app/ntfy/id1625396347" 
+                            target="_blank" 
+                            rel="noopener"
+                            className="flex-1"
+                          >
+                            <Button variant="outline" size="sm" className="w-full text-xs">
+                              🍎 iPhone
+                              <ExternalLink className="w-3 h-3 ml-1" />
+                            </Button>
+                          </a>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium">2. Scegli un nome segreto (topic):</p>
+                        <div className="flex gap-2">
+                          <Input
+                            value={ntfyTopic}
+                            onChange={(e) => setNtfyTopic(e.target.value)}
+                            placeholder="es: miei-promemoria-xyz"
+                            className="flex-1 text-sm"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const topic = generateTopic();
+                              setNtfyTopic(topic);
+                              toast.success('Topic generato!');
+                            }}
+                          >
+                            🎲
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Usa lo stesso nome nell'app ntfy per ricevere le notifiche
+                        </p>
+                      </div>
+                      
+                      <Button
+                        onClick={() => {
+                          if (ntfyTopic.trim()) {
+                            enableNtfy(ntfyTopic);
+                            toast.success('Notifiche push attivate!');
+                          } else {
+                            toast.error('Inserisci un nome topic');
+                          }
+                        }}
+                        className="w-full"
+                        disabled={!ntfyTopic.trim()}
+                      >
+                        ✅ Attiva notifiche push
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3 text-green-500">
+                        <Smartphone className="w-5 h-5" />
+                        <span>Notifiche push attive</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
+                        <span className="text-xs text-muted-foreground">Topic:</span>
+                        <code className="flex-1 text-xs font-mono">{ntfyConfig.topic}</code>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(ntfyConfig.topic);
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
+                            toast.success('Topic copiato!');
+                          }}
+                        >
+                          {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                        </Button>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={async () => {
+                            setTesting(true);
+                            const success = await testNtfy();
+                            setTesting(false);
+                            if (success) {
+                              toast.success('Notifica push inviata! Controlla l\'app ntfy');
+                            } else {
+                              toast.error('Errore invio notifica');
+                            }
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          disabled={testing}
+                        >
+                          {testing ? '⏳' : '🔔'} Testa
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            disableNtfy();
+                            setNtfyTopic('');
+                            toast.info('Notifiche push disattivate');
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-destructive"
+                        >
+                          Disattiva
+                        </Button>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>

@@ -31,6 +31,13 @@ export function useNotifications() {
   }, []);
 
   const sendNotification = useCallback((title: string, body: string, icon?: string) => {
+    // Always play sound and vibrate, even if notifications aren't granted
+    playNotificationSound();
+    vibrateDevice();
+    
+    // Show in-app alert for mobile
+    showInAppAlert(title, body);
+    
     if (permissionState === 'granted') {
       try {
         const notification = new Notification(title, {
@@ -45,53 +52,128 @@ export function useNotifications() {
           window.focus();
           notification.close();
         };
-
-        // Play notification sound
-        playNotificationSound();
         
         console.log('✅ Notifica inviata:', title);
       } catch (error) {
         console.error('❌ Errore invio notifica:', error);
       }
     } else {
-      console.warn('⚠️ Notifiche non autorizzate:', permissionState);
+      console.warn('⚠️ Notifiche browser non autorizzate, usando alert in-app');
     }
   }, [permissionState]);
 
+  const vibrateDevice = useCallback(() => {
+    // Vibrate on mobile devices
+    if ('vibrate' in navigator) {
+      // Pattern: vibrate 200ms, pause 100ms, vibrate 200ms, pause 100ms, vibrate 300ms
+      navigator.vibrate([200, 100, 200, 100, 300]);
+      console.log('📳 Vibrazione attivata');
+    }
+  }, []);
+
+  const showInAppAlert = useCallback((title: string, body: string) => {
+    // Create a visual alert that works on mobile
+    const alertDiv = document.createElement('div');
+    alertDiv.id = 'reminder-alert';
+    alertDiv.innerHTML = `
+      <div style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.8);
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        animation: fadeIn 0.3s ease;
+      ">
+        <div style="
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border-radius: 20px;
+          padding: 30px;
+          max-width: 350px;
+          width: 100%;
+          text-align: center;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+          animation: slideUp 0.3s ease;
+        ">
+          <div style="font-size: 50px; margin-bottom: 15px;">🔔</div>
+          <h2 style="color: white; font-size: 20px; margin: 0 0 10px 0; font-weight: bold;">${title}</h2>
+          <p style="color: rgba(255,255,255,0.9); font-size: 16px; margin: 0 0 25px 0;">${body}</p>
+          <button onclick="document.getElementById('reminder-alert').remove()" style="
+            background: white;
+            color: #764ba2;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+          ">OK, Ho capito!</button>
+        </div>
+      </div>
+      <style>
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      </style>
+    `;
+    
+    // Remove existing alert if any
+    const existing = document.getElementById('reminder-alert');
+    if (existing) existing.remove();
+    
+    document.body.appendChild(alertDiv);
+    console.log('📱 Alert in-app mostrato');
+  }, []);
+
   const playNotificationSound = useCallback(() => {
     try {
-      // Create a simple beep using Web Audio API
+      // Create a loud notification sound using Web Audio API
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
       
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
+      // Play a sequence of tones (like a phone ringtone)
+      const playTone = (freq: number, startTime: number, duration: number, volume: number) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = freq;
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(volume, startTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+        
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      };
       
-      oscillator.frequency.value = 800;
-      oscillator.type = 'sine';
+      const now = audioContext.currentTime;
       
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      // Play a pleasant notification melody (louder, volume 0.8)
+      // First phrase
+      playTone(880, now, 0.15, 0.8);        // A5
+      playTone(1108, now + 0.15, 0.15, 0.8); // C#6
+      playTone(1318, now + 0.3, 0.25, 0.8);  // E6
       
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.3);
+      // Repeat after pause
+      playTone(880, now + 0.8, 0.15, 0.8);
+      playTone(1108, now + 0.95, 0.15, 0.8);
+      playTone(1318, now + 1.1, 0.25, 0.8);
       
-      // Second beep
-      setTimeout(() => {
-        const osc2 = audioContext.createOscillator();
-        const gain2 = audioContext.createGain();
-        osc2.connect(gain2);
-        gain2.connect(audioContext.destination);
-        osc2.frequency.value = 1000;
-        osc2.type = 'sine';
-        gain2.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-        osc2.start(audioContext.currentTime);
-        osc2.stop(audioContext.currentTime + 0.2);
-      }, 150);
+      // Third time
+      playTone(880, now + 1.6, 0.15, 0.8);
+      playTone(1108, now + 1.75, 0.15, 0.8);
+      playTone(1318, now + 1.9, 0.4, 0.8);
+      
+      console.log('🔊 Suono notifica riprodotto');
     } catch (e) {
-      console.log('Audio not supported');
+      console.log('Audio not supported:', e);
     }
   }, []);
 
