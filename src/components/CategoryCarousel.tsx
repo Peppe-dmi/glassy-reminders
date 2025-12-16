@@ -237,7 +237,7 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
       onTouchEnd={onTouchEnd}
     >
       {/* Container delle card */}
-      <div className="relative h-32 flex items-center justify-center">
+      <div className="relative h-36 flex items-center justify-center">
         {categories.map((category, i) => {
           const count = reminders.filter(r => r.categoryId === category.id && !r.isCompleted).length;
           const borderColor = categoryBorderColors[category.color] || categoryBorderColors.default;
@@ -357,7 +357,7 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
       </div>
 
       {/* Indicatori sotto */}
-      <div className="flex justify-center gap-1.5 mt-4">
+      <div className="flex justify-center gap-1.5 mt-8">
         {categories.map((_, i) => (
           <button
             key={i}
