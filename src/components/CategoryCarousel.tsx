@@ -101,18 +101,19 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     
     const container = scrollRef.current;
     const scrollWidth = container.scrollWidth;
+    const clientWidth = container.clientWidth;
     const scrollLeft = container.scrollLeft;
+    const maxScroll = scrollWidth - clientWidth;
     const sectionWidth = scrollWidth / 5; // Diviso per 5 sezioni
     
-    // Mantieni l'utente nelle sezioni centrali (2, 3)
-    // Se troppo a sinistra (sezione 0-1), salta avanti
-    if (scrollLeft < sectionWidth * 1) {
+    // Se troppo a sinistra (sezione 0-1), salta avanti di 2 sezioni
+    if (scrollLeft < sectionWidth * 0.8) {
       container.style.scrollBehavior = 'auto';
       container.scrollLeft = scrollLeft + sectionWidth * 2;
       container.style.scrollBehavior = '';
     }
-    // Se troppo a destra (sezione 4), salta indietro  
-    else if (scrollLeft > sectionWidth * 3.5) {
+    // Se troppo a destra (ultimi 20% o vicino alla fine), salta indietro di 2 sezioni
+    else if (scrollLeft > maxScroll - sectionWidth * 0.8 || scrollLeft > sectionWidth * 3.2) {
       container.style.scrollBehavior = 'auto';
       container.scrollLeft = scrollLeft - sectionWidth * 2;
       container.style.scrollBehavior = '';
