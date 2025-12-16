@@ -35,7 +35,7 @@ const categoryBadgeColors: Record<string, string> = {
   personal: 'bg-sky-500 text-white',
   friends: 'bg-pink-500 text-white',
   health: 'bg-emerald-500 text-white',
-  finance: 'bg-violet-500 text-white',
+  finance: 'bg-violet-500/60',
   default: 'bg-primary text-white',
 };
 
@@ -48,11 +48,21 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
   const navigate = useNavigate();
   const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
+  
+  // Inizia sempre con la card centrale (se >= 3 categorie, altrimenti la prima)
+  const getInitialIndex = () => {
+    if (categories.length >= 3) return 1; // Seconda card = centrale con una a sx e una a dx
+    return 0;
+  };
+  const [currentIndex, setCurrentIndex] = useState(getInitialIndex);
+  
+  // Tracking per velocità swipe
   const isDragging = useRef(false);
   const startX = useRef(0);
-  const scrollLeft = useRef(0);
+  const startTime = useRef(0);
+  const lastX = useRef(0);
+  const velocity = useRef(0);
   
   // Ombre diverse per tema chiaro/scuro
   const isDark = theme === 'dark';
@@ -63,7 +73,16 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     ? '0 4px 12px rgba(255,255,255,0.05)'
     : '0 4px 12px rgba(0,0,0,0.15)';
 
-  // Calcola quante card sono visibili
+  // Aggiorna l'index iniziale quando cambiano le categorie
+  useEffect(() => {
+    if (categories.length >= 3) {
+      setCurrentIndex(1);
+    } else {
+      setCurrentIndex(0);
+    }
+  }, [categories.length]);
+
+  // Calcola larghezza container
   useEffect(() => {
     const updateWidth = () => {
       if (containerRef.current) {
@@ -75,30 +94,39 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     return () => window.removeEventListener('resize', updateWidth);
   }, []);
 
-  // Naviga a un indice specifico
+  // Naviga a un indice specifico con wrap-around
   const goToIndex = useCallback((index: number) => {
     const len = categories.length;
     if (len === 0) return;
     
     // Wrap around
     let newIndex = index;
-    if (newIndex < 0) newIndex = len - 1;
-    if (newIndex >= len) newIndex = 0;
+    while (newIndex < 0) newIndex += len;
+    while (newIndex >= len) newIndex -= len;
     
     setCurrentIndex(newIndex);
   }, [categories.length]);
 
-  // Touch/mouse handlers per swipe
+  // Touch/mouse handlers con tracking velocità
   const handleDragStart = (clientX: number) => {
     isDragging.current = true;
     startX.current = clientX;
-    scrollLeft.current = currentIndex;
+    lastX.current = clientX;
+    startTime.current = Date.now();
+    velocity.current = 0;
   };
 
   const handleDragMove = (clientX: number) => {
     if (!isDragging.current) return;
-    const diff = startX.current - clientX;
-    // Accumula solo, non fare niente durante il drag
+    
+    // Calcola velocità istantanea
+    const now = Date.now();
+    const dt = now - startTime.current;
+    if (dt > 0) {
+      velocity.current = (lastX.current - clientX) / dt * 1000; // px/s
+    }
+    lastX.current = clientX;
+    startTime.current = now;
   };
 
   const handleDragEnd = (clientX: number) => {
@@ -106,14 +134,31 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     isDragging.current = false;
     
     const diff = startX.current - clientX;
-    const threshold = 50; // Minimo px per cambiare card
+    const absVelocity = Math.abs(velocity.current);
     
-    if (diff > threshold) {
-      // Swipe sinistra -> prossima
-      goToIndex(currentIndex + 1);
-    } else if (diff < -threshold) {
-      // Swipe destra -> precedente
-      goToIndex(currentIndex - 1);
+    // Calcola quante card saltare in base a distanza + velocità
+    let cardsToMove = 0;
+    
+    // Base: distanza percorsa
+    const distanceCards = Math.round(Math.abs(diff) / CARD_TOTAL);
+    
+    // Bonus velocità: se swipe veloce, aggiungi card
+    const velocityBonus = Math.floor(absVelocity / 800); // 1 card extra ogni 800px/s
+    
+    cardsToMove = Math.max(1, distanceCards + velocityBonus);
+    
+    // Limita a max 5 card per swipe
+    cardsToMove = Math.min(cardsToMove, 5);
+    
+    // Soglia minima per muoversi
+    const threshold = 30;
+    
+    if (diff > threshold || velocity.current > 200) {
+      // Swipe sinistra -> avanti
+      goToIndex(currentIndex + cardsToMove);
+    } else if (diff < -threshold || velocity.current < -200) {
+      // Swipe destra -> indietro
+      goToIndex(currentIndex - cardsToMove);
     }
   };
 
@@ -147,7 +192,7 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
       className="relative overflow-hidden pb-8 pt-6 select-none"
       style={{ 
         minHeight: '200px',
-        touchAction: 'pan-y', // Permetti scroll verticale pagina
+        touchAction: 'pan-y',
       }}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
@@ -165,8 +210,8 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
         }}
         transition={{
           type: 'spring',
-          stiffness: 300,
-          damping: 30,
+          stiffness: 200,
+          damping: 25,
         }}
       >
         {categories.map((category, i) => {
@@ -179,7 +224,7 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
           const distance = Math.abs(i - currentIndex);
           const isCenter = distance === 0;
           
-          // Scala: 1.5 al centro, 0.6 ai lati
+          // Scala: 1.5 al centro, gradualmente più piccola
           const scale = isCenter ? 1.5 : Math.max(0.55, 1 - distance * 0.35);
           const opacity = isCenter ? 1 : Math.max(0.4, 1 - distance * 0.3);
           
@@ -215,7 +260,7 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
                   width: size,
                   height: size,
                 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 25 }}
                 style={{ 
                   boxShadow: isCenter ? shadowLarge : shadowSmall,
                 }}
@@ -227,11 +272,11 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
                     width: iconSize,
                     height: iconSize,
                   }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 25 }}
                 >
                   <motion.span 
                     animate={{ fontSize: `${fontSize}rem` }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                    transition={{ type: 'spring', stiffness: 200, damping: 25 }}
                   >
                     {category.icon}
                   </motion.span>
