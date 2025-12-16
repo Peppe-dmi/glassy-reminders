@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Download, Upload, Bell, BellOff, Trash2, Volume2, Vibrate } from 'lucide-react';
+import { X, Download, Upload, Bell, BellOff, Trash2, Volume2, Vibrate, AlarmClock } from 'lucide-react';
 import { useReminders } from '@/contexts/ReminderContext';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -35,6 +35,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     settings: notifSettings,
     setVibrationEnabled,
     setRingtone,
+    setAlarmMode,
     playPreview,
   } = useNotificationSettings();
 
@@ -198,6 +199,35 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 </div>
               </div>
 
+              {/* Alarm Mode */}
+              <div className="space-y-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <AlarmClock className="w-4 h-4" /> Modalità Sveglia
+                </h3>
+                <div className="glass-subtle rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 pr-4">
+                      <span>Notifiche ripetute</span>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Ricevi 4 notifiche a distanza di 1 minuto come una sveglia
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAlarmMode(!notifSettings.alarmMode)}
+                      className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ${
+                        notifSettings.alarmMode ? 'bg-primary' : 'bg-muted'
+                      }`}
+                    >
+                      <motion.div
+                        animate={{ x: notifSettings.alarmMode ? 20 : 2 }}
+                        className="absolute top-1 w-5 h-5 rounded-full bg-foreground"
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {/* Vibration */}
               <div className="space-y-3">
                 <h3 className="font-semibold flex items-center gap-2">
@@ -211,7 +241,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                       onClick={() => {
                         setVibrationEnabled(!notifSettings.vibrationEnabled);
                         if (!notifSettings.vibrationEnabled && 'vibrate' in navigator) {
-                          navigator.vibrate([100, 50, 100]);
+                          navigator.vibrate([500, 200, 500, 200, 800]);
                         }
                       }}
                       className={`relative w-12 h-7 rounded-full transition-colors ${
@@ -224,15 +254,23 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                       />
                     </button>
                   </div>
+                  {notifSettings.vibrationEnabled && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      ⚡ Pattern forte per Samsung
+                    </p>
+                  )}
                 </div>
               </div>
 
               {/* Ringtone */}
               <div className="space-y-3">
                 <h3 className="font-semibold flex items-center gap-2">
-                  <Volume2 className="w-4 h-4" /> Suoneria
+                  <Volume2 className="w-4 h-4" /> Suoneria Notifiche
                 </h3>
-                <div className="glass-subtle rounded-xl p-4">
+                <div className="glass-subtle rounded-xl p-4 space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    Tocca per sentire l'anteprima. La suoneria sarà usata per le notifiche.
+                  </p>
                   <div className="grid grid-cols-2 gap-2">
                     {RINGTONE_OPTIONS.map((option) => (
                       <button
@@ -253,6 +291,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                       </button>
                     ))}
                   </div>
+                  <p className="text-xs text-amber-500/80">
+                    ⚠️ Dopo aver installato l'APK, vai in Impostazioni Samsung → App → Promemoria → Notifiche per confermare il suono.
+                  </p>
                 </div>
               </div>
 

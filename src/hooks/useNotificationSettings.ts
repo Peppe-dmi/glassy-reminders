@@ -1,25 +1,43 @@
 import { useLocalStorage } from './useLocalStorage';
 
-export type RingtoneType = 'default' | 'chime' | 'bell' | 'soft' | 'urgent' | 'silent';
+// I nomi corrispondono ai file in android/app/src/main/res/raw/
+export type RingtoneType = 'default' | 'chime' | 'beep' | 'gentle' | 'urgent' | 'alert' | 'silent';
 
 export interface NotificationSettings {
   vibrationEnabled: boolean;
   ringtone: RingtoneType;
+  alarmMode: boolean; // Modalità sveglia: notifiche ripetute
 }
 
 const DEFAULT_SETTINGS: NotificationSettings = {
   vibrationEnabled: true,
-  ringtone: 'default',
+  ringtone: 'chime',
+  alarmMode: true, // Default ON per notifiche tipo sveglia
 };
 
 export const RINGTONE_OPTIONS: { value: RingtoneType; label: string; emoji: string }[] = [
-  { value: 'default', label: 'Standard', emoji: '🔔' },
+  { value: 'default', label: 'Standard Android', emoji: '🔔' },
   { value: 'chime', label: 'Carillon', emoji: '🎵' },
-  { value: 'bell', label: 'Campana', emoji: '🔔' },
-  { value: 'soft', label: 'Delicato', emoji: '🌸' },
+  { value: 'beep', label: 'Beep', emoji: '📢' },
+  { value: 'gentle', label: 'Delicato', emoji: '🌸' },
   { value: 'urgent', label: 'Urgente', emoji: '⚡' },
+  { value: 'alert', label: 'Allarme', emoji: '🚨' },
   { value: 'silent', label: 'Silenzioso', emoji: '🔇' },
 ];
+
+// Mappa suoneria -> nome file Android (senza estensione)
+export function getAndroidSoundName(ringtone: RingtoneType): string | undefined {
+  switch (ringtone) {
+    case 'default': return undefined; // Usa suono default Android
+    case 'chime': return 'chime';
+    case 'beep': return 'beep';
+    case 'gentle': return 'gentle';
+    case 'urgent': return 'urgent';
+    case 'alert': return 'alert';
+    case 'silent': return undefined;
+    default: return undefined;
+  }
+}
 
 export function useNotificationSettings() {
   const [settings, setSettings] = useLocalStorage<NotificationSettings>(
@@ -35,10 +53,14 @@ export function useNotificationSettings() {
     setSettings({ ...settings, ringtone });
   };
 
+  const setAlarmMode = (enabled: boolean) => {
+    setSettings({ ...settings, alarmMode: enabled });
+  };
+
   const playPreview = (ringtone: RingtoneType) => {
     playRingtone(ringtone);
-    if (settings.vibrationEnabled && 'vibrate' in navigator) {
-      navigator.vibrate([200, 100, 200]);
+    if (settings.vibrationEnabled) {
+      vibrateDevice(true);
     }
   };
 
@@ -46,11 +68,12 @@ export function useNotificationSettings() {
     settings,
     setVibrationEnabled,
     setRingtone,
+    setAlarmMode,
     playPreview,
   };
 }
 
-// Play ringtone sound
+// Play ringtone sound (web fallback with synthesized tones)
 export function playRingtone(type: RingtoneType) {
   if (type === 'silent') return;
 
@@ -84,11 +107,11 @@ export function playRingtone(type: RingtoneType) {
         playTone(784, now + 0.4, 0.2);
         playTone(1047, now + 0.6, 0.4);
         break;
-      case 'bell':
-        playTone(800, now, 0.5);
-        playTone(400, now + 0.1, 0.4);
+      case 'beep':
+        playTone(1000, now, 0.3);
+        playTone(1000, now + 0.4, 0.3);
         break;
-      case 'soft':
+      case 'gentle':
         playTone(440, now, 0.3, 0.3);
         playTone(550, now + 0.35, 0.3, 0.3);
         break;
@@ -99,16 +122,22 @@ export function playRingtone(type: RingtoneType) {
         playTone(1200, now + 0.3, 0.1);
         playTone(1400, now + 0.4, 0.2);
         break;
+      case 'alert':
+        playTone(800, now, 0.5);
+        playTone(400, now + 0.1, 0.4);
+        break;
     }
   } catch (e) {
     console.log('Audio not supported');
   }
 }
 
-// Vibrate device
+// Vibrate device with STRONG pattern for Samsung
 export function vibrateDevice(enabled: boolean) {
-  if (enabled && 'vibrate' in navigator) {
-    navigator.vibrate([200, 100, 200, 100, 300]);
+  if (!enabled) return;
+  
+  if ('vibrate' in navigator) {
+    // Pattern forte per Samsung: lungo-pausa-lungo-pausa-molto lungo
+    navigator.vibrate([500, 200, 500, 200, 800]);
   }
 }
-
