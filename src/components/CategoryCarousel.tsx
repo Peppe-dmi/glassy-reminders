@@ -97,9 +97,8 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
   // Snap alla card più vicina CON INERZIA
   const snapWithInertia = useCallback((currentRotation: number, vel: number) => {
     // Simula dove arriverà con l'inerzia (decelerazione naturale)
-    // Più alta la velocità, più card salterà
-    const friction = 0.92; // Attrito (più basso = si ferma prima)
-    const minVelocity = 5; // Velocità minima per fermarsi
+    const friction = 0.88; // Attrito più alto = si ferma prima, più controllo
+    const minVelocity = 8; // Velocità minima per fermarsi
     
     let projectedRotation = currentRotation;
     let currentVel = vel;
@@ -113,12 +112,12 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     // Snap alla card più vicina dalla posizione proiettata
     const snappedRotation = Math.round(projectedRotation / anglePerCard) * anglePerCard;
     
-    // Animazione morbida verso lo snap
+    // Animazione morbida ma controllata
     animate(rotation, snappedRotation, {
       type: 'spring',
-      stiffness: 50,  // Più morbido
-      damping: 15,    // Meno smorzamento = più rimbalzo/fluidità
-      velocity: vel,  // Mantieni la velocità iniziale
+      stiffness: 80,  // Un po' più rigido per controllo
+      damping: 18,    // Smorzamento bilanciato
+      velocity: vel * 0.5,  // Riduci velocità iniziale dell'animazione
     });
   }, [anglePerCard, rotation]);
 
@@ -136,8 +135,8 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     if (!isDragging.current) return;
     
     const diff = clientX - startX.current;
-    // Sensibilità ALTA: poco movimento = molta rotazione
-    const sensitivity = 1.2;
+    // Sensibilità bilanciata: controllo + fluidità
+    const sensitivity = 0.7;
     const newRotation = startRotation.current - diff * sensitivity;
     rotation.set(newRotation);
     
@@ -147,7 +146,7 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     if (dt > 0) {
       const instantVel = ((lastX.current - clientX) * sensitivity) / dt * 1000;
       // Smooth della velocità per evitare spike
-      velocity.current = velocity.current * 0.7 + instantVel * 0.3;
+      velocity.current = velocity.current * 0.6 + instantVel * 0.4;
     }
     lastX.current = clientX;
     lastTime.current = now;
