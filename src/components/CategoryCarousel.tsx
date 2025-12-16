@@ -41,6 +41,13 @@ const categoryBadgeColors: Record<string, string> = {
 
 const CARD_SIZE = 80;
 
+// Feedback tattile leggero (come time picker Samsung)
+const hapticFeedback = () => {
+  if ('vibrate' in navigator) {
+    navigator.vibrate(8); // Vibrazione brevissima 8ms
+  }
+};
+
 export function CategoryCarousel({ categories, reminders }: CategoryCarouselProps) {
   const navigate = useNavigate();
   const { theme } = useTheme();
@@ -58,6 +65,9 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
   const lastTime = useRef(0);
   const velocity = useRef(0);
   
+  // Per il feedback tattile
+  const lastFrontIndex = useRef(-1);
+  
   const isDark = theme === 'dark';
   
   // Angolo per card (360° / numero categorie)
@@ -70,9 +80,19 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
   useEffect(() => {
     const unsubscribe = rotation.on('change', (v) => {
       setDisplayRotation(v);
+      
+      // Calcola il frontIndex corrente
+      const normalizedRot = ((v % 360) + 360) % 360;
+      const currentFrontIndex = Math.round(normalizedRot / anglePerCard) % categories.length;
+      
+      // Se è cambiato, vibra!
+      if (currentFrontIndex !== lastFrontIndex.current && lastFrontIndex.current !== -1) {
+        hapticFeedback();
+      }
+      lastFrontIndex.current = currentFrontIndex;
     });
     return () => unsubscribe();
-  }, [rotation]);
+  }, [rotation, anglePerCard, categories.length]);
 
   // Snap alla card più vicina CON INERZIA
   const snapWithInertia = useCallback((currentRotation: number, vel: number) => {
