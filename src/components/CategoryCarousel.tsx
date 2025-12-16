@@ -121,15 +121,10 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
   return (
     <div 
       ref={scrollRef}
-      className="flex items-center overflow-x-auto pb-8 pt-6 scrollbar-hide snap-x snap-mandatory"
+      className="flex items-center justify-center overflow-x-auto pb-8 pt-6 scrollbar-hide px-4"
       style={{ 
-        // Padding per centrare la prima card
-        paddingLeft: 'calc(50% - 55px)',
-        paddingRight: 'calc(50% - 55px)',
-        scrollPaddingLeft: 'calc(50% - 55px)',
-        scrollPaddingRight: 'calc(50% - 55px)',
         minHeight: '180px',
-        gap: '8px', // Gap più stretto per effetto rullino compatto
+        gap: '6px', // Gap stretto per effetto rullino compatto
       }}
     >
       {categories.map((category, i) => {
@@ -155,7 +150,7 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
             transition={{ delay: i * 0.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => navigate(`/category/${category.id}`)}
-            className="carousel-card flex-shrink-0 snap-center flex flex-col items-center"
+            className="carousel-card flex-shrink-0 flex flex-col items-center"
             style={{
               opacity: opacity,
               transition: 'opacity 0.15s ease-out',
