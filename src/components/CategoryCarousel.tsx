@@ -41,10 +41,10 @@ const categoryBadgeColors: Record<string, string> = {
 export function CategoryCarousel({ categories, reminders }: CategoryCarouselProps) {
   const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [cardStates, setCardStates] = useState<{ scale: number; opacity: number }[]>([]);
 
-  // Calcola l'indice della card più vicina al centro
-  const calculateActiveIndex = useCallback(() => {
+  // Calcola scala e opacità per ogni card basandosi sulla distanza dal centro
+  const calculateCardStates = useCallback(() => {
     if (!scrollRef.current || categories.length === 0) return;
     
     const container = scrollRef.current;
@@ -52,42 +52,59 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     const centerX = containerRect.width / 2;
     
     const cards = container.querySelectorAll('.carousel-card');
-    let closestIndex = 0;
-    let closestDistance = Infinity;
+    const newStates: { scale: number; opacity: number }[] = [];
     
-    cards.forEach((card, index) => {
+    cards.forEach((card) => {
       const cardRect = card.getBoundingClientRect();
       const cardCenterX = cardRect.left - containerRect.left + cardRect.width / 2;
-      const distance = Math.abs(centerX - cardCenterX);
+      const distanceFromCenter = Math.abs(centerX - cardCenterX);
       
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestIndex = index;
-      }
+      // Distanza più stretta per effetto più evidente (100px = fuori focus)
+      const focusDistance = 100;
+      const normalizedDistance = Math.min(distanceFromCenter / focusDistance, 1);
+      
+      // Scala: 1.5 al centro → 0.55 ai bordi (MOLTO evidente!)
+      const scale = 1.5 - normalizedDistance * 0.95;
+      // Opacità: 1.0 al centro → 0.35 ai bordi
+      const opacity = 1 - normalizedDistance * 0.65;
+      
+      newStates.push({ scale: Math.max(0.55, scale), opacity: Math.max(0.35, opacity) });
     });
     
-    setActiveIndex(closestIndex);
+    setCardStates(newStates);
   }, [categories.length]);
 
   useEffect(() => {
-    calculateActiveIndex();
+    calculateCardStates();
     
     const container = scrollRef.current;
     if (container) {
-      container.addEventListener('scroll', calculateActiveIndex);
-      window.addEventListener('resize', calculateActiveIndex);
+      // Usa requestAnimationFrame per scroll più fluido
+      let ticking = false;
+      const handleScroll = () => {
+        if (!ticking) {
+          requestAnimationFrame(() => {
+            calculateCardStates();
+            ticking = false;
+          });
+          ticking = true;
+        }
+      };
+      
+      container.addEventListener('scroll', handleScroll, { passive: true });
+      window.addEventListener('resize', calculateCardStates);
       
       // Initial calculation
-      setTimeout(calculateActiveIndex, 50);
+      setTimeout(calculateCardStates, 50);
     }
     
     return () => {
       if (container) {
-        container.removeEventListener('scroll', calculateActiveIndex);
+        container.removeEventListener('scroll', calculateCardStates);
       }
-      window.removeEventListener('resize', calculateActiveIndex);
+      window.removeEventListener('resize', calculateCardStates);
     };
-  }, [calculateActiveIndex, categories.length]);
+  }, [calculateCardStates, categories.length]);
 
 
   if (categories.length === 0) {
@@ -98,20 +115,21 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     );
   }
 
-  // Card dimensions
-  const CARD_SIZE_ACTIVE = 100; // Card centrale grande
-  const CARD_SIZE_INACTIVE = 70; // Card laterali piccole
+  // Dimensioni base della card (quando scala=1)
+  const BASE_SIZE = 70;
 
   return (
     <div 
       ref={scrollRef}
-      className="flex gap-6 overflow-x-auto pb-8 pt-6 scrollbar-hide snap-x snap-mandatory items-center"
+      className="flex items-center overflow-x-auto pb-8 pt-6 scrollbar-hide snap-x snap-mandatory"
       style={{ 
-        scrollPaddingLeft: `calc(50% - ${CARD_SIZE_ACTIVE / 2}px)`,
-        scrollPaddingRight: `calc(50% - ${CARD_SIZE_ACTIVE / 2}px)`,
-        paddingLeft: `calc(50% - ${CARD_SIZE_ACTIVE / 2}px)`,
-        paddingRight: `calc(50% - ${CARD_SIZE_ACTIVE / 2}px)`,
-        minHeight: '160px',
+        // Padding per centrare la prima card
+        paddingLeft: 'calc(50% - 55px)',
+        paddingRight: 'calc(50% - 55px)',
+        scrollPaddingLeft: 'calc(50% - 55px)',
+        scrollPaddingRight: 'calc(50% - 55px)',
+        minHeight: '180px',
+        gap: '8px', // Gap più stretto per effetto rullino compatto
       }}
     >
       {categories.map((category, i) => {
@@ -120,33 +138,27 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
         const iconBg = categoryIconBg[category.color] || categoryIconBg.default;
         const badgeColor = categoryBadgeColors[category.color] || categoryBadgeColors.default;
         
-        // Card attiva = quella al centro
-        const isActive = i === activeIndex;
-        const distance = Math.abs(i - activeIndex);
+        // Usa lo stato calcolato dalla posizione reale
+        const { scale, opacity } = cardStates[i] || { scale: 0.7, opacity: 0.5 };
         
-        // Scala: 1.0 per attiva, 0.7 per le altre (grande differenza!)
-        const scale = isActive ? 1 : Math.max(0.65, 0.85 - distance * 0.15);
-        // Opacità: 1.0 per attiva, 0.4 per le altre
-        const opacity = isActive ? 1 : Math.max(0.35, 0.6 - distance * 0.15);
-        // Dimensione card
-        const size = isActive ? CARD_SIZE_ACTIVE : CARD_SIZE_INACTIVE;
+        // Dimensioni dinamiche basate sulla scala
+        const size = BASE_SIZE * scale;
+        const iconSize = 40 * scale;
+        const fontSize = 1.5 * scale;
+        const isLarge = scale > 1.1;
         
         return (
           <motion.button
             key={category.id}
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ 
-              opacity: 1, 
-              scale: 1,
-            }}
-            transition={{ delay: i * 0.05, type: 'spring', stiffness: 200 }}
-            whileTap={{ scale: 0.9 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => navigate(`/category/${category.id}`)}
             className="carousel-card flex-shrink-0 snap-center flex flex-col items-center"
             style={{
-              transform: `scale(${scale})`,
               opacity: opacity,
-              transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease-out',
+              transition: 'opacity 0.15s ease-out',
             }}
           >
             <div 
@@ -154,24 +166,24 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
               style={{ 
                 width: `${size}px`, 
                 height: `${size}px`,
-                boxShadow: isActive 
-                  ? '0 12px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.1)' 
-                  : '0 4px 12px rgba(0,0,0,0.2)',
-                transition: 'width 0.25s, height 0.25s, box-shadow 0.25s',
+                boxShadow: isLarge 
+                  ? '0 16px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.1)' 
+                  : `0 ${4 * scale}px ${12 * scale}px rgba(0,0,0,0.25)`,
+                transition: 'width 0.15s ease-out, height 0.15s ease-out, box-shadow 0.15s ease-out',
               }}
             >
               {/* Icon background */}
               <div 
                 className={`rounded-xl ${iconBg} flex items-center justify-center`}
                 style={{
-                  width: isActive ? '52px' : '36px',
-                  height: isActive ? '52px' : '36px',
-                  transition: 'width 0.25s, height 0.25s',
+                  width: `${iconSize}px`,
+                  height: `${iconSize}px`,
+                  transition: 'width 0.15s ease-out, height 0.15s ease-out',
                 }}
               >
                 <span style={{ 
-                  fontSize: isActive ? '2rem' : '1.5rem',
-                  transition: 'font-size 0.25s',
+                  fontSize: `${fontSize}rem`,
+                  transition: 'font-size 0.15s ease-out',
                 }}>
                   {category.icon}
                 </span>
@@ -180,12 +192,12 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
               {/* Counter badge */}
               {count > 0 && (
                 <span 
-                  className={`absolute -top-2 -right-2 rounded-full ${badgeColor} text-xs font-bold flex items-center justify-center shadow-lg`}
+                  className={`absolute -top-1.5 -right-1.5 rounded-full ${badgeColor} text-xs font-bold flex items-center justify-center shadow-lg`}
                   style={{
-                    width: isActive ? '26px' : '20px',
-                    height: isActive ? '26px' : '20px',
-                    fontSize: isActive ? '0.75rem' : '0.625rem',
-                    transition: 'all 0.25s',
+                    width: `${20 * Math.min(scale, 1.1)}px`,
+                    height: `${20 * Math.min(scale, 1.1)}px`,
+                    fontSize: `${0.65 * Math.min(scale, 1.1)}rem`,
+                    transition: 'all 0.15s ease-out',
                   }}
                 >
                   {count}
@@ -195,10 +207,10 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
             <p 
               className="mt-2 text-center font-semibold truncate"
               style={{ 
-                opacity: isActive ? 1 : 0.5,
-                fontSize: isActive ? '0.875rem' : '0.75rem',
-                width: `${size}px`,
-                transition: 'all 0.25s',
+                opacity: isLarge ? 1 : 0.6,
+                fontSize: `${Math.max(0.7, 0.75 * scale)}rem`,
+                width: `${Math.max(70, size)}px`,
+                transition: 'all 0.15s ease-out',
               }}
             >
               {category.name}
