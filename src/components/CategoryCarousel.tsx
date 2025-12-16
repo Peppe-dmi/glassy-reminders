@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { motion, useAnimation, useMotionValue, animate } from 'framer-motion';
+import { motion, useMotionValue, animate } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Category } from '@/types/reminder';
@@ -39,12 +39,13 @@ const categoryBadgeColors: Record<string, string> = {
   default: 'bg-primary text-white',
 };
 
-const CARD_SIZE = 80;
+const CARD_SIZE = 75;
+const CARD_GAP = 20;
 
-// Feedback tattile leggero (come time picker Samsung)
+// Feedback tattile leggero
 const hapticFeedback = () => {
   if ('vibrate' in navigator) {
-    navigator.vibrate(8); // Vibrazione brevissima 8ms
+    navigator.vibrate(8);
   }
 };
 
@@ -52,80 +53,98 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
   const navigate = useNavigate();
   const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
   
-  // Rotazione in gradi (continua, senza limiti)
-  const rotation = useMotionValue(0);
-  const [displayRotation, setDisplayRotation] = useState(0);
+  // Indice corrente (può essere frazionario durante lo scroll)
+  const currentIndex = useMotionValue(0);
+  const [displayIndex, setDisplayIndex] = useState(0);
   
   // Tracking drag
   const isDragging = useRef(false);
   const startX = useRef(0);
-  const startRotation = useRef(0);
+  const startIndex = useRef(0);
   const lastX = useRef(0);
   const lastTime = useRef(0);
   const velocity = useRef(0);
   
-  // Per il feedback tattile
-  const lastFrontIndex = useRef(-1);
+  // Per il feedback tattile - inizializza a 0 subito
+  const lastSnappedIndex = useRef(0);
+  const isInitialized = useRef(false);
   
   const isDark = theme === 'dark';
-  
-  // Angolo per card (360° / numero categorie)
-  const anglePerCard = categories.length > 0 ? 360 / categories.length : 60;
-  
-  // Raggio del cilindro (più grande = card più distanti)
-  const radius = Math.max(120, categories.length * 25);
 
-  // Aggiorna displayRotation quando rotation cambia
+  // Calcola larghezza container
   useEffect(() => {
-    const unsubscribe = rotation.on('change', (v) => {
-      setDisplayRotation(v);
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth);
+      }
+    };
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
+
+  // Aggiorna displayIndex e gestisce vibrazione
+  useEffect(() => {
+    const unsubscribe = currentIndex.on('change', (v) => {
+      setDisplayIndex(v);
       
-      // Calcola il frontIndex corrente
-      const normalizedRot = ((v % 360) + 360) % 360;
-      const currentFrontIndex = Math.round(normalizedRot / anglePerCard) % categories.length;
+      // Calcola l'indice snappato corrente
+      const len = categories.length;
+      if (len === 0) return;
       
-      // Se è cambiato, vibra!
-      if (currentFrontIndex !== lastFrontIndex.current && lastFrontIndex.current !== -1) {
+      let snapped = Math.round(v);
+      // Wrap around
+      snapped = ((snapped % len) + len) % len;
+      
+      // Vibra solo se cambia E siamo già inizializzati
+      if (isInitialized.current && snapped !== lastSnappedIndex.current) {
         hapticFeedback();
       }
-      lastFrontIndex.current = currentFrontIndex;
+      lastSnappedIndex.current = snapped;
+      
+      // Marca come inizializzato dopo il primo render
+      if (!isInitialized.current) {
+        isInitialized.current = true;
+      }
     });
     return () => unsubscribe();
-  }, [rotation, anglePerCard, categories.length]);
+  }, [currentIndex, categories.length]);
 
-  // Snap alla card più vicina CON INERZIA
-  const snapWithInertia = useCallback((currentRotation: number, vel: number) => {
-    // Simula dove arriverà con l'inerzia (decelerazione naturale)
-    const friction = 0.88; // Attrito più alto = si ferma prima, più controllo
-    const minVelocity = 8; // Velocità minima per fermarsi
+  // Snap all'indice più vicino con inerzia
+  const snapWithInertia = useCallback((current: number, vel: number) => {
+    const len = categories.length;
+    if (len === 0) return;
     
-    let projectedRotation = currentRotation;
+    // Simula inerzia
+    const friction = 0.85;
+    const minVelocity = 0.05;
+    
+    let projected = current;
     let currentVel = vel;
     
-    // Simula l'inerzia per calcolare dove si fermerà
     while (Math.abs(currentVel) > minVelocity) {
-      projectedRotation += currentVel * 0.016; // ~60fps
+      projected += currentVel * 0.016;
       currentVel *= friction;
     }
     
-    // Snap alla card più vicina dalla posizione proiettata
-    const snappedRotation = Math.round(projectedRotation / anglePerCard) * anglePerCard;
+    // Snap all'indice più vicino
+    const snapped = Math.round(projected);
     
-    // Animazione morbida ma controllata
-    animate(rotation, snappedRotation, {
+    animate(currentIndex, snapped, {
       type: 'spring',
-      stiffness: 80,  // Un po' più rigido per controllo
-      damping: 18,    // Smorzamento bilanciato
-      velocity: vel * 0.5,  // Riduci velocità iniziale dell'animazione
+      stiffness: 120,
+      damping: 20,
+      velocity: vel * 0.3,
     });
-  }, [anglePerCard, rotation]);
+  }, [categories.length, currentIndex]);
 
-  // Gestione drag
+  // Gestione drag - sensibilità ridotta
   const handleDragStart = (clientX: number) => {
     isDragging.current = true;
     startX.current = clientX;
-    startRotation.current = rotation.get();
+    startIndex.current = currentIndex.get();
     lastX.current = clientX;
     lastTime.current = Date.now();
     velocity.current = 0;
@@ -135,18 +154,17 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     if (!isDragging.current) return;
     
     const diff = clientX - startX.current;
-    // Sensibilità bilanciata: controllo + fluidità
-    const sensitivity = 0.7;
-    const newRotation = startRotation.current - diff * sensitivity;
-    rotation.set(newRotation);
+    // Sensibilità: quanto px per cambiare 1 indice (più alto = meno sensibile)
+    const pxPerIndex = 120;
+    const newIndex = startIndex.current - diff / pxPerIndex;
+    currentIndex.set(newIndex);
     
-    // Calcola velocità (gradi/secondo)
+    // Calcola velocità
     const now = Date.now();
     const dt = now - lastTime.current;
     if (dt > 0) {
-      const instantVel = ((lastX.current - clientX) * sensitivity) / dt * 1000;
-      // Smooth della velocità per evitare spike
-      velocity.current = velocity.current * 0.6 + instantVel * 0.4;
+      const instantVel = ((lastX.current - clientX) / pxPerIndex) / dt * 1000;
+      velocity.current = velocity.current * 0.5 + instantVel * 0.5;
     }
     lastX.current = clientX;
     lastTime.current = now;
@@ -155,9 +173,7 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
   const handleDragEnd = () => {
     if (!isDragging.current) return;
     isDragging.current = false;
-    
-    // Lancia con inerzia!
-    snapWithInertia(rotation.get(), velocity.current);
+    snapWithInertia(currentIndex.get(), velocity.current);
   };
 
   // Mouse events
@@ -176,6 +192,23 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
   const onTouchMove = (e: React.TouchEvent) => handleDragMove(e.touches[0].clientX);
   const onTouchEnd = () => handleDragEnd();
 
+  // Vai a un indice specifico
+  const goToIndex = (index: number) => {
+    const current = currentIndex.get();
+    const len = categories.length;
+    
+    // Trova il percorso più breve
+    let diff = index - (current % len);
+    if (diff > len / 2) diff -= len;
+    if (diff < -len / 2) diff += len;
+    
+    animate(currentIndex, current + diff, {
+      type: 'spring',
+      stiffness: 100,
+      damping: 18,
+    });
+  };
+
   if (categories.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -184,19 +217,17 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     );
   }
 
-  // Trova quale card è più vicina al fronte (rotazione 0)
-  const normalizedRotation = ((displayRotation % 360) + 360) % 360;
-  const frontIndex = Math.round(normalizedRotation / anglePerCard) % categories.length;
+  const len = categories.length;
+  const centerX = containerWidth / 2;
+  
+  // Indice centrale corrente (wrapped)
+  const currentCenterIndex = ((Math.round(displayIndex) % len) + len) % len;
 
   return (
     <div 
       ref={containerRef}
       className="relative overflow-hidden pb-4 pt-6 select-none cursor-grab active:cursor-grabbing"
-      style={{ 
-        minHeight: '220px',
-        perspective: '800px',
-        perspectiveOrigin: 'center center',
-      }}
+      style={{ minHeight: '200px' }}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
@@ -205,82 +236,69 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      {/* Contenitore 3D rotante */}
-      <div
-        className="relative mx-auto"
-        style={{
-          width: `${CARD_SIZE}px`,
-          height: `${CARD_SIZE + 40}px`,
-          transformStyle: 'preserve-3d',
-          transform: `rotateY(${-displayRotation}deg)`,
-          transition: isDragging.current ? 'none' : undefined,
-        }}
-      >
+      {/* Container delle card */}
+      <div className="relative h-32 flex items-center justify-center">
         {categories.map((category, i) => {
           const count = reminders.filter(r => r.categoryId === category.id && !r.isCompleted).length;
           const borderColor = categoryBorderColors[category.color] || categoryBorderColors.default;
           const iconBg = categoryIconBg[category.color] || categoryIconBg.default;
           const badgeColor = categoryBadgeColors[category.color] || categoryBadgeColors.default;
           
-          // Posizione angolare di questa card
-          const cardAngle = i * anglePerCard;
+          // Calcola distanza dall'indice centrale (considerando loop)
+          let offset = i - displayIndex;
+          // Wrap per loop infinito
+          while (offset > len / 2) offset -= len;
+          while (offset < -len / 2) offset += len;
           
-          // Calcola se questa card è quella frontale
-          const isFront = i === frontIndex;
+          // Posizione X basata sull'offset
+          const xPos = offset * (CARD_SIZE + CARD_GAP);
           
-          // Calcola quanto è "di fronte" questa card (0 = dietro, 1 = davanti)
-          const cardRotationInView = ((cardAngle - normalizedRotation + 180 + 360) % 360) - 180;
-          const frontness = Math.cos((cardRotationInView * Math.PI) / 180);
+          // Effetto ellittico: leggera curva verso il basso ai lati
+          const distanceFromCenter = Math.abs(offset);
+          const yOffset = distanceFromCenter * distanceFromCenter * 3; // Curva parabolica leggera
+          const zOffset = -distanceFromCenter * 15; // Leggera profondità
           
-          // Scala e opacità basate su quanto è di fronte
-          const scale = 0.6 + frontness * 0.5; // 0.6 dietro -> 1.1 davanti
-          const opacity = 0.3 + frontness * 0.7; // 0.3 dietro -> 1.0 davanti
+          // Scala: grande al centro, piccola ai lati
+          const scale = Math.max(0.6, 1.3 - distanceFromCenter * 0.35);
+          const opacity = Math.max(0.3, 1 - distanceFromCenter * 0.35);
           
-          // Shadow per profondità
-          const shadow = isFront
+          const isCenter = distanceFromCenter < 0.5;
+          
+          // Shadow
+          const shadow = isCenter
             ? isDark 
-              ? '0 8px 32px rgba(255,255,255,0.15), 0 0 0 1px rgba(255,255,255,0.2)'
-              : '0 16px 48px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,0,0,0.1)'
+              ? '0 8px 32px rgba(255,255,255,0.12), 0 0 0 1px rgba(255,255,255,0.15)'
+              : '0 12px 40px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.08)'
             : isDark
               ? '0 4px 12px rgba(255,255,255,0.05)'
-              : '0 4px 12px rgba(0,0,0,0.1)';
+              : '0 4px 12px rgba(0,0,0,0.12)';
           
           const size = CARD_SIZE * scale;
-          const iconSize = 40 * scale;
-          const fontSize = 1.6 * scale;
+          const iconSize = 38 * scale;
+          const fontSize = 1.5 * scale;
+          
+          // Nascondi card troppo lontane
+          if (distanceFromCenter > 3) return null;
           
           return (
-            <div
+            <motion.div
               key={category.id}
-              className="absolute left-1/2 top-0 flex flex-col items-center"
+              className="absolute flex flex-col items-center"
               style={{
-                transform: `
-                  translateX(-50%)
-                  rotateY(${cardAngle}deg)
-                  translateZ(${radius}px)
-                `,
-                transformStyle: 'preserve-3d',
+                x: xPos,
+                y: yOffset,
+                scale: scale,
                 opacity: opacity,
-                zIndex: Math.round(frontness * 100),
+                zIndex: 100 - Math.round(distanceFromCenter * 10),
               }}
             >
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (isFront) {
+                  if (isCenter) {
                     navigate(`/category/${category.id}`);
                   } else {
-                    // Ruota per portare questa card al fronte
-                    const targetRotation = i * anglePerCard;
-                    const currentNorm = rotation.get() % 360;
-                    let diff = targetRotation - (currentNorm % 360);
-                    if (diff > 180) diff -= 360;
-                    if (diff < -180) diff += 360;
-                    animate(rotation, rotation.get() + diff, {
-                      type: 'spring',
-                      stiffness: 50,
-                      damping: 12,
-                    });
+                    goToIndex(i);
                   }
                 }}
                 className="flex flex-col items-center transition-transform active:scale-95"
@@ -291,8 +309,7 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
                     width: `${size}px`, 
                     height: `${size}px`,
                     boxShadow: shadow,
-                    transition: 'box-shadow 0.2s',
-                    backfaceVisibility: 'hidden',
+                    transform: `translateZ(${zOffset}px)`,
                   }}
                 >
                   {/* Icon background */}
@@ -326,39 +343,27 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
                 <p 
                   className="mt-2 text-center font-semibold truncate"
                   style={{ 
-                    opacity: isFront ? 1 : 0.6,
+                    opacity: isCenter ? 1 : 0.5,
                     fontSize: `${Math.max(0.65, 0.7 * scale)}rem`,
-                    width: `${Math.max(70, size + 20)}px`,
-                    backfaceVisibility: 'hidden',
+                    width: `${Math.max(70, size + 10)}px`,
                   }}
                 >
                   {category.name}
                 </p>
               </button>
-            </div>
+            </motion.div>
           );
         })}
       </div>
 
       {/* Indicatori sotto */}
-      <div className="flex justify-center gap-1.5 mt-6">
+      <div className="flex justify-center gap-1.5 mt-4">
         {categories.map((_, i) => (
           <button
             key={i}
-            onClick={() => {
-              const targetRotation = i * anglePerCard;
-              const currentNorm = rotation.get() % 360;
-              let diff = targetRotation - (currentNorm % 360);
-              if (diff > 180) diff -= 360;
-              if (diff < -180) diff += 360;
-              animate(rotation, rotation.get() + diff, {
-                type: 'spring',
-                stiffness: 50,
-                damping: 12,
-              });
-            }}
+            onClick={() => goToIndex(i)}
             className={`w-2 h-2 rounded-full transition-all duration-200 ${
-              i === frontIndex 
+              i === currentCenterIndex 
                 ? 'bg-primary w-6' 
                 : 'bg-muted-foreground/30'
             }`}
