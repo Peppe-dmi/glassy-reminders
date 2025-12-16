@@ -1,16 +1,10 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { motion, useMotionValue, animate } from 'framer-motion';
+import { motion, useMotionValue, animate, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Category } from '@/types/reminder';
 import { useReminders } from '@/contexts/ReminderContext';
-import { MoreVertical, Trash2, Edit } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Trash2, Edit } from 'lucide-react';
 import { EditCategoryDialog } from './EditCategoryDialog';
 import { toast } from 'sonner';
 
@@ -51,11 +45,19 @@ const categoryBadgeColors: Record<string, string> = {
 
 const CARD_SIZE = 75;
 const CARD_GAP = 16;
+const LONG_PRESS_DURATION = 500; // ms
 
 // Feedback tattile leggero
 const hapticFeedback = () => {
   if ('vibrate' in navigator) {
     navigator.vibrate(8);
+  }
+};
+
+// Feedback tattile più forte per long press
+const hapticLongPress = () => {
+  if ('vibrate' in navigator) {
+    navigator.vibrate(30);
   }
 };
 
@@ -69,6 +71,11 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
   // Dialog modifica
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   
+  // Context menu per long press
+  const [contextMenu, setContextMenu] = useState<{ category: Category; x: number; y: number } | null>(null);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const isLongPress = useRef(false);
+  
   // Indice corrente (può essere frazionario durante lo scroll)
   const currentIndex = useMotionValue(0);
   const [displayIndex, setDisplayIndex] = useState(0);
@@ -80,6 +87,7 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
   const lastX = useRef(0);
   const lastTime = useRef(0);
   const velocity = useRef(0);
+  const hasMoved = useRef(false);
   
   // Per il feedback tattile
   const lastSnappedIndex = useRef(-1);
@@ -100,7 +108,6 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
 
   // Inizializza vibrazione dopo mount
   useEffect(() => {
-    // Inizializza lastSnappedIndex al valore corrente dopo un breve delay
     const timer = setTimeout(() => {
       const len = categories.length;
       if (len > 0) {
@@ -121,7 +128,6 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
       let snapped = Math.round(v);
       snapped = ((snapped % len) + len) % len;
       
-      // Vibra se cambiato e già inizializzato
       if (lastSnappedIndex.current >= 0 && snapped !== lastSnappedIndex.current) {
         hapticFeedback();
         lastSnappedIndex.current = snapped;
@@ -129,6 +135,17 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     });
     return () => unsubscribe();
   }, [currentIndex, categories.length]);
+
+  // Chiudi context menu quando si clicca fuori
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (contextMenu) {
+        setContextMenu(null);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [contextMenu]);
 
   // Snap all'indice più vicino con inerzia
   const snapWithInertia = useCallback((current: number, vel: number) => {
@@ -156,9 +173,18 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     });
   }, [categories.length, currentIndex]);
 
+  // Cancella long press timer
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
   // Gestione drag
   const handleDragStart = (clientX: number) => {
     isDragging.current = true;
+    hasMoved.current = false;
     startX.current = clientX;
     startIndex.current = currentIndex.get();
     lastX.current = clientX;
@@ -170,6 +196,14 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     if (!isDragging.current) return;
     
     const diff = clientX - startX.current;
+    
+    // Se si è mosso abbastanza, cancella long press
+    if (Math.abs(diff) > 10) {
+      hasMoved.current = true;
+      cancelLongPress();
+      isLongPress.current = false;
+    }
+    
     const pxPerIndex = 120;
     const newIndex = startIndex.current - diff / pxPerIndex;
     currentIndex.set(newIndex);
@@ -185,9 +219,28 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
   };
 
   const handleDragEnd = () => {
+    cancelLongPress();
     if (!isDragging.current) return;
     isDragging.current = false;
-    snapWithInertia(currentIndex.get(), velocity.current);
+    
+    if (!isLongPress.current) {
+      snapWithInertia(currentIndex.get(), velocity.current);
+    }
+    isLongPress.current = false;
+  };
+
+  // Long press su una card
+  const startLongPress = (category: Category, clientX: number, clientY: number) => {
+    cancelLongPress();
+    isLongPress.current = false;
+    
+    longPressTimer.current = setTimeout(() => {
+      if (!hasMoved.current) {
+        isLongPress.current = true;
+        hapticLongPress();
+        setContextMenu({ category, x: clientX, y: clientY });
+      }
+    }, LONG_PRESS_DURATION);
   };
 
   // Mouse events
@@ -198,6 +251,7 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
   const onMouseMove = (e: React.MouseEvent) => handleDragMove(e.clientX);
   const onMouseUp = () => handleDragEnd();
   const onMouseLeave = () => {
+    cancelLongPress();
     if (isDragging.current) handleDragEnd();
   };
 
@@ -222,10 +276,18 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     });
   };
 
-  const handleDelete = (categoryId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDelete = (categoryId: string) => {
     deleteCategory(categoryId);
     toast.success('Categoria eliminata');
+    setContextMenu(null);
+  };
+
+  const handleEdit = (category: Category) => {
+    setContextMenu(null);
+    // Piccolo delay per far chiudere il context menu prima di aprire il dialog
+    setTimeout(() => {
+      setEditingCategory(category);
+    }, 50);
   };
 
   if (categories.length === 0) {
@@ -253,7 +315,7 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
-        {/* Container delle card - tutte allineate orizzontalmente */}
+        {/* Container delle card */}
         <div className="relative h-36 flex items-center justify-center">
           {categories.map((category, i) => {
             const count = reminders.filter(r => r.categoryId === category.id && !r.isCompleted).length;
@@ -261,21 +323,14 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
             const iconBg = categoryIconBg[category.color] || categoryIconBg.default;
             const badgeColor = categoryBadgeColors[category.color] || categoryBadgeColors.default;
             
-            // Calcola distanza dall'indice centrale
             let offset = i - displayIndex;
             while (offset > len / 2) offset -= len;
             while (offset < -len / 2) offset += len;
             
-            // Posizione X uniforme
             const xPos = offset * (CARD_SIZE + CARD_GAP);
-            
-            // Distanza dal centro (sempre positiva)
             const distanceFromCenter = Math.abs(offset);
-            
-            // Scala lineare: 1.3 al centro → 0.7 ai lati
             const scale = Math.max(0.7, 1.3 - distanceFromCenter * 0.3);
             const opacity = Math.max(0.4, 1 - distanceFromCenter * 0.3);
-            
             const isCenter = distanceFromCenter < 0.5;
             
             const shadow = isCenter
@@ -290,7 +345,6 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
             const iconSize = 38 * scale;
             const fontSize = 1.5 * scale;
             
-            // Nascondi card troppo lontane
             if (distanceFromCenter > 3) return null;
             
             return (
@@ -304,97 +358,71 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
                   zIndex: 100 - Math.round(distanceFromCenter * 10),
                 }}
               >
-                <div className="relative">
-                  {/* Menu dropdown - solo per card centrale */}
-                  {isCenter && (
-                    <div 
-                      className="absolute -top-2 -right-2 z-20"
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button className="p-1.5 rounded-full bg-card/80 backdrop-blur-sm shadow-md">
-                            <MoreVertical className="w-3.5 h-3.5 text-muted-foreground" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="glass-strong border-border/50">
-                          <DropdownMenuItem 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingCategory(category);
-                            }} 
-                            className="gap-2"
-                          >
-                            <Edit className="w-4 h-4" /> Modifica
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={(e) => handleDelete(category.id, e)} 
-                            className="gap-2 text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" /> Elimina
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  )}
-                  
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (isCenter) {
-                        navigate(`/category/${category.id}`);
-                      } else {
-                        goToIndex(i);
-                      }
+                <button
+                  onTouchStart={(e) => {
+                    const touch = e.touches[0];
+                    startLongPress(category, touch.clientX, touch.clientY);
+                  }}
+                  onMouseDown={(e) => {
+                    startLongPress(category, e.clientX, e.clientY);
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isLongPress.current || hasMoved.current) return;
+                    
+                    if (isCenter) {
+                      navigate(`/category/${category.id}`);
+                    } else {
+                      goToIndex(i);
+                    }
+                  }}
+                  className="flex flex-col items-center transition-transform active:scale-95"
+                >
+                  <div 
+                    className={`rounded-2xl bg-card border-2 ${borderColor} flex flex-col items-center justify-center relative`}
+                    style={{ 
+                      width: `${size}px`, 
+                      height: `${size}px`,
+                      boxShadow: shadow,
                     }}
-                    className="flex flex-col items-center transition-transform active:scale-95"
                   >
                     <div 
-                      className={`rounded-2xl bg-card border-2 ${borderColor} flex flex-col items-center justify-center relative`}
-                      style={{ 
-                        width: `${size}px`, 
-                        height: `${size}px`,
-                        boxShadow: shadow,
+                      className={`rounded-xl ${iconBg} flex items-center justify-center`}
+                      style={{
+                        width: `${iconSize}px`,
+                        height: `${iconSize}px`,
                       }}
                     >
-                      <div 
-                        className={`rounded-xl ${iconBg} flex items-center justify-center`}
-                        style={{
-                          width: `${iconSize}px`,
-                          height: `${iconSize}px`,
-                        }}
-                      >
-                        <span style={{ fontSize: `${fontSize}rem` }}>
-                          {category.icon}
-                        </span>
-                      </div>
-                      
-                      {count > 0 && (
-                        <span 
-                          className={`absolute -top-1 -right-1 rounded-full ${badgeColor} text-xs font-bold flex items-center justify-center shadow-lg`}
-                          style={{
-                            width: '18px',
-                            height: '18px',
-                            fontSize: '0.6rem',
-                          }}
-                        >
-                          {count}
-                        </span>
-                      )}
+                      <span style={{ fontSize: `${fontSize}rem` }}>
+                        {category.icon}
+                      </span>
                     </div>
                     
-                    <p 
-                      className="mt-2 text-center font-semibold truncate"
-                      style={{ 
-                        opacity: isCenter ? 1 : 0.5,
-                        fontSize: `${Math.max(0.65, 0.7 * scale)}rem`,
-                        width: `${Math.max(70, size + 10)}px`,
-                      }}
-                    >
-                      {category.name}
-                    </p>
-                  </button>
-                </div>
+                    {count > 0 && (
+                      <span 
+                        className={`absolute -top-1 -right-1 rounded-full ${badgeColor} text-xs font-bold flex items-center justify-center shadow-lg`}
+                        style={{
+                          width: '18px',
+                          height: '18px',
+                          fontSize: '0.6rem',
+                        }}
+                      >
+                        {count}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <p 
+                    className="mt-2 text-center font-semibold truncate"
+                    style={{ 
+                      opacity: isCenter ? 1 : 0.5,
+                      fontSize: `${Math.max(0.65, 0.7 * scale)}rem`,
+                      width: `${Math.max(70, size + 10)}px`,
+                    }}
+                  >
+                    {category.name}
+                  </p>
+                </button>
               </motion.div>
             );
           })}
@@ -415,6 +443,39 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
           ))}
         </div>
       </div>
+
+      {/* Context Menu - Long Press */}
+      <AnimatePresence>
+        {contextMenu && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.15 }}
+            className="fixed z-[200] glass-strong rounded-xl shadow-2xl border border-border/50 overflow-hidden"
+            style={{
+              left: Math.min(contextMenu.x, window.innerWidth - 160),
+              top: Math.min(contextMenu.y, window.innerHeight - 120),
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => handleEdit(contextMenu.category)}
+              className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+            >
+              <Edit className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium">Modifica</span>
+            </button>
+            <button
+              onClick={() => handleDelete(contextMenu.category.id)}
+              className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors text-destructive"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span className="text-sm font-medium">Elimina</span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Dialog modifica categoria */}
       {editingCategory && (
