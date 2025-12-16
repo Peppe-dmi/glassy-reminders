@@ -1,11 +1,12 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Download, Upload, Bell, BellOff, Trash2, Volume2, Vibrate, AlarmClock } from 'lucide-react';
+import { X, Download, Upload, Bell, BellOff, Trash2, Vibrate, AlarmClock, Settings2 } from 'lucide-react';
 import { useReminders } from '@/contexts/ReminderContext';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useRef, useState } from 'react';
 import { useNativeNotifications } from '@/hooks/useNativeNotifications';
-import { useNotificationSettings, RINGTONE_OPTIONS } from '@/hooks/useNotificationSettings';
+import { useNotificationSettings } from '@/hooks/useNotificationSettings';
+import { NativeSettings, AndroidSettings } from 'capacitor-native-settings';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -34,10 +35,26 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const {
     settings: notifSettings,
     setVibrationEnabled,
-    setRingtone,
     setAlarmMode,
-    playPreview,
   } = useNotificationSettings();
+
+  // Apri impostazioni notifiche Android
+  const openNotificationSettings = async () => {
+    try {
+      await NativeSettings.openAndroid({
+        option: AndroidSettings.AppNotification,
+      });
+    } catch {
+      // Fallback: prova ad aprire le impostazioni generali dell'app
+      try {
+        await NativeSettings.openAndroid({
+          option: AndroidSettings.ApplicationDetails,
+        });
+      } catch {
+        toast.error('Non riesco ad aprire le impostazioni');
+      }
+    }
+  };
 
   const handleExport = () => {
     const data = exportData();
@@ -262,37 +279,25 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 </div>
               </div>
 
-              {/* Ringtone */}
+              {/* Personalizza Suono */}
               <div className="space-y-3">
                 <h3 className="font-semibold flex items-center gap-2">
-                  <Volume2 className="w-4 h-4" /> Suoneria Notifiche
+                  <Settings2 className="w-4 h-4" /> Personalizza Suono
                 </h3>
                 <div className="glass-subtle rounded-xl p-4 space-y-3">
-                  <p className="text-xs text-muted-foreground">
-                    Tocca per sentire l'anteprima. La suoneria sarà usata per le notifiche.
+                  <p className="text-sm text-muted-foreground">
+                    Per cambiare il suono delle notifiche, usa le impostazioni native di Android.
                   </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {RINGTONE_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => {
-                          setRingtone(option.value);
-                          playPreview(option.value);
-                        }}
-                        className={`p-3 rounded-xl text-sm transition-all flex items-center gap-2 ${
-                          notifSettings.ringtone === option.value
-                            ? 'glass-strong ring-2 ring-primary'
-                            : 'glass hover:bg-muted'
-                        }`}
-                      >
-                        <span className="text-lg">{option.emoji}</span>
-                        <span>{option.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-xs text-amber-500/80">
-                    ⚠️ Dopo aver installato l'APK, vai in Impostazioni Samsung → App → Promemoria → Notifiche per confermare il suono.
+                  <Button
+                    onClick={openNotificationSettings}
+                    variant="default"
+                    className="w-full"
+                  >
+                    <Settings2 className="w-4 h-4 mr-2" />
+                    Apri Impostazioni Notifiche
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Qui puoi scegliere suoneria, vibrazione e altre opzioni direttamente da Android.
                   </p>
                 </div>
               </div>
