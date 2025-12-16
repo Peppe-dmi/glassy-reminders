@@ -74,16 +74,31 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     return () => unsubscribe();
   }, [rotation]);
 
-  // Snap alla card più vicina
-  const snapToNearest = useCallback((currentRotation: number, initialVelocity: number = 0) => {
-    // Trova l'angolo più vicino multiplo di anglePerCard
-    const snappedRotation = Math.round(currentRotation / anglePerCard) * anglePerCard;
+  // Snap alla card più vicina CON INERZIA
+  const snapWithInertia = useCallback((currentRotation: number, vel: number) => {
+    // Simula dove arriverà con l'inerzia (decelerazione naturale)
+    // Più alta la velocità, più card salterà
+    const friction = 0.92; // Attrito (più basso = si ferma prima)
+    const minVelocity = 5; // Velocità minima per fermarsi
     
+    let projectedRotation = currentRotation;
+    let currentVel = vel;
+    
+    // Simula l'inerzia per calcolare dove si fermerà
+    while (Math.abs(currentVel) > minVelocity) {
+      projectedRotation += currentVel * 0.016; // ~60fps
+      currentVel *= friction;
+    }
+    
+    // Snap alla card più vicina dalla posizione proiettata
+    const snappedRotation = Math.round(projectedRotation / anglePerCard) * anglePerCard;
+    
+    // Animazione morbida verso lo snap
     animate(rotation, snappedRotation, {
       type: 'spring',
-      stiffness: 100,
-      damping: 20,
-      velocity: initialVelocity,
+      stiffness: 50,  // Più morbido
+      damping: 15,    // Meno smorzamento = più rimbalzo/fluidità
+      velocity: vel,  // Mantieni la velocità iniziale
     });
   }, [anglePerCard, rotation]);
 
@@ -101,16 +116,18 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     if (!isDragging.current) return;
     
     const diff = clientX - startX.current;
-    // Sensibilità: più px = più rotazione (negativo perché swipe sx = rotazione positiva)
-    const sensitivity = 0.5;
+    // Sensibilità ALTA: poco movimento = molta rotazione
+    const sensitivity = 1.2;
     const newRotation = startRotation.current - diff * sensitivity;
     rotation.set(newRotation);
     
-    // Calcola velocità
+    // Calcola velocità (gradi/secondo)
     const now = Date.now();
     const dt = now - lastTime.current;
     if (dt > 0) {
-      velocity.current = ((lastX.current - clientX) * sensitivity) / dt * 1000;
+      const instantVel = ((lastX.current - clientX) * sensitivity) / dt * 1000;
+      // Smooth della velocità per evitare spike
+      velocity.current = velocity.current * 0.7 + instantVel * 0.3;
     }
     lastX.current = clientX;
     lastTime.current = now;
@@ -120,8 +137,8 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     if (!isDragging.current) return;
     isDragging.current = false;
     
-    // Snap con inerzia basata sulla velocità
-    snapToNearest(rotation.get(), velocity.current);
+    // Lancia con inerzia!
+    snapWithInertia(rotation.get(), velocity.current);
   };
 
   // Mouse events
@@ -242,8 +259,8 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
                     if (diff < -180) diff += 360;
                     animate(rotation, rotation.get() + diff, {
                       type: 'spring',
-                      stiffness: 100,
-                      damping: 20,
+                      stiffness: 50,
+                      damping: 12,
                     });
                   }
                 }}
@@ -317,8 +334,8 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
               if (diff < -180) diff += 360;
               animate(rotation, rotation.get() + diff, {
                 type: 'spring',
-                stiffness: 100,
-                damping: 20,
+                stiffness: 50,
+                damping: 12,
               });
             }}
             className={`w-2 h-2 rounded-full transition-all duration-200 ${
