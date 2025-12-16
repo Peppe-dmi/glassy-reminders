@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Download, Upload, Bell, BellOff, Trash2, Vibrate, AlarmClock, Settings2 } from 'lucide-react';
+import { X, Download, Upload, Bell, BellOff, Trash2, Vibrate, AlarmClock, Settings2, CheckCircle, Clock } from 'lucide-react';
 import { useReminders } from '@/contexts/ReminderContext';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -18,6 +18,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     exportData, 
     importData, 
     importCategory,
+    deleteCompletedReminders,
+    deleteOldReminders,
+    getCompletedCount,
+    getStats,
   } = useReminders();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const categoryInputRef = useRef<HTMLInputElement>(null);
@@ -111,6 +115,29 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     };
     reader.readAsText(file);
     e.target.value = '';
+  };
+
+  const handleDeleteCompleted = () => {
+    const count = getCompletedCount();
+    if (count === 0) {
+      toast.info('Nessun promemoria completato da eliminare');
+      return;
+    }
+    if (confirm(`Eliminare ${count} promemoria completati?`)) {
+      const deleted = deleteCompletedReminders();
+      toast.success(`${deleted} promemoria eliminati!`);
+    }
+  };
+
+  const handleDeleteOld = (days: number) => {
+    if (confirm(`Eliminare i promemoria completati più vecchi di ${days} giorni?`)) {
+      const deleted = deleteOldReminders(days);
+      if (deleted > 0) {
+        toast.success(`${deleted} promemoria eliminati!`);
+      } else {
+        toast.info('Nessun promemoria da eliminare');
+      }
+    }
   };
 
   const handleClearData = () => {
@@ -359,8 +386,59 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 />
               </div>
 
-              {/* Danger Zone */}
+              {/* Pulizia */}
               <div className="space-y-3 pt-4 border-t border-border/50">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Trash2 className="w-4 h-4" /> Pulizia
+                </h3>
+                <div className="glass-subtle rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-500" />
+                      Completati
+                    </span>
+                    <span className="font-bold text-emerald-500">{getCompletedCount()}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-rose-500" />
+                      Scaduti
+                    </span>
+                    <span className="font-bold text-rose-500">{getStats().overdueCount}</span>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleDeleteCompleted}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Elimina completati ({getCompletedCount()})
+                </Button>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    onClick={() => handleDeleteOld(7)}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    Più vecchi di 7gg
+                  </Button>
+                  <Button
+                    onClick={() => handleDeleteOld(30)}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    Più vecchi di 30gg
+                  </Button>
+                </div>
+              </div>
+
+              {/* Danger Zone */}
+              <div className="space-y-3">
                 <h3 className="font-semibold text-destructive flex items-center gap-2">
                   <Trash2 className="w-4 h-4" /> Zona Pericolosa
                 </h3>

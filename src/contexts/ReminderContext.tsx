@@ -24,6 +24,8 @@ interface ReminderContextType {
   addReminder: (reminder: Omit<Reminder, 'id' | 'createdAt'>) => Reminder;
   updateReminder: (id: string, updates: Partial<Reminder>) => void;
   deleteReminder: (id: string) => void;
+  deleteCompletedReminders: () => number;
+  deleteOldReminders: (daysOld: number) => number;
   toggleReminderComplete: (id: string) => void;
   snoozeReminder: (id: string, minutes: number) => void;
   getRemindersByCategory: (categoryId: string) => Reminder[];
@@ -34,6 +36,7 @@ interface ReminderContextType {
   getUpcomingReminders: (days: number) => Reminder[];
   searchReminders: (query: string) => Reminder[];
   getStats: () => ReminderStats;
+  getCompletedCount: () => number;
   exportData: () => ExportData;
   importData: (data: ExportData) => boolean;
   exportCategory: (categoryId: string) => string;
@@ -162,6 +165,37 @@ export function ReminderProvider({ children }: { children: React.ReactNode }) {
     cancelNotification(id);
     setReminders((prev) => prev.filter((r) => r.id !== id));
   }, [setReminders, cancelNotification]);
+
+  // Elimina tutti i promemoria completati
+  const deleteCompletedReminders = useCallback(() => {
+    const completed = reminders.filter(r => r.isCompleted);
+    completed.forEach(r => cancelNotification(r.id));
+    setReminders((prev) => prev.filter((r) => !r.isCompleted));
+    return completed.length;
+  }, [reminders, setReminders, cancelNotification]);
+
+  // Elimina promemoria più vecchi di X giorni
+  const deleteOldReminders = useCallback((daysOld: number) => {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+    
+    const old = reminders.filter(r => {
+      const reminderDate = new Date(r.date);
+      return reminderDate < cutoffDate && r.isCompleted;
+    });
+    
+    old.forEach(r => cancelNotification(r.id));
+    setReminders((prev) => prev.filter((r) => {
+      const reminderDate = new Date(r.date);
+      return !(reminderDate < cutoffDate && r.isCompleted);
+    }));
+    return old.length;
+  }, [reminders, setReminders, cancelNotification]);
+
+  // Conta promemoria completati
+  const getCompletedCount = useCallback(() => {
+    return reminders.filter(r => r.isCompleted).length;
+  }, [reminders]);
 
   const toggleReminderComplete = useCallback((id: string) => {
     setReminders((prev) => {
@@ -451,6 +485,8 @@ export function ReminderProvider({ children }: { children: React.ReactNode }) {
         addReminder,
         updateReminder,
         deleteReminder,
+        deleteCompletedReminders,
+        deleteOldReminders,
         toggleReminderComplete,
         snoozeReminder,
         getRemindersByCategory,
@@ -461,6 +497,7 @@ export function ReminderProvider({ children }: { children: React.ReactNode }) {
         getUpcomingReminders,
         searchReminders,
         getStats,
+        getCompletedCount,
         exportData,
         importData,
         exportCategory,
