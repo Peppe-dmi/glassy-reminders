@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Sora:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,12 +6,12 @@
 
 @layer base {
   :root {
-    /* Light Theme - Clean & Elegant */
-    --background: 0 0% 96%;
-    --foreground: 240 10% 10%;
+    /* Light Theme - Fresh & Modern */
+    --background: 220 20% 97%;
+    --foreground: 220 15% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 10%;
+    --card-foreground: 220 15% 12%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 10%;
@@ -134,27 +134,39 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased transition-colors duration-300;
-    font-family: 'Inter', system-ui, sans-serif;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-family: 'Sora', system-ui, sans-serif;
   }
 }
 
 @layer components {
   .glass {
+    @apply bg-card/80 backdrop-blur-xl border border-border/60 shadow-sm;
+  }
+
+  .glass-strong {
+    @apply bg-card/90 backdrop-blur-2xl border border-border/70 shadow-md;
+  }
+
+  .glass-subtle {
+    @apply bg-card/60 backdrop-blur-lg border border-border/40;
+  }
+
+  .dark .glass {
     @apply bg-card/70 backdrop-blur-xl border border-border/50;
     box-shadow: var(--shadow-glass);
   }
 
-  .glass-strong {
+  .dark .glass-strong {
     @apply bg-card/85 backdrop-blur-2xl border border-border/60;
     box-shadow: var(--shadow-glass);
   }
 
-  .glass-subtle {
+  .dark .glass-subtle {
     @apply bg-card/50 backdrop-blur-lg border border-border/30;
   }
 
