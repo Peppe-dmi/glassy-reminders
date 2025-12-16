@@ -47,27 +47,15 @@
     --gradient-secondary: linear-gradient(135deg, hsl(200 80% 55%), hsl(262 83% 58%));
     --gradient-surface: linear-gradient(145deg, hsl(0 0% 100% / 0.9), hsl(0 0% 98% / 0.7));
     
-    /* 3D Shadows - Light */
-    --shadow-3d: 
-      0 1px 2px hsl(0 0% 0% / 0.04),
-      0 4px 8px hsl(0 0% 0% / 0.06),
-      0 8px 16px hsl(0 0% 0% / 0.08),
-      0 16px 32px hsl(0 0% 0% / 0.10);
-    --shadow-3d-hover: 
-      0 2px 4px hsl(0 0% 0% / 0.04),
-      0 8px 16px hsl(0 0% 0% / 0.08),
-      0 16px 32px hsl(0 0% 0% / 0.12),
-      0 24px 48px hsl(0 0% 0% / 0.14);
+    /* 3D Shadows - Light (Static) */
+    --shadow-elegant: 
+      0 1px 2px hsl(0 0% 0% / 0.03),
+      0 4px 8px hsl(0 0% 0% / 0.05),
+      0 8px 16px hsl(0 0% 0% / 0.06),
+      0 16px 32px hsl(0 0% 0% / 0.08);
     --shadow-glass: 0 8px 32px hsl(0 0% 0% / 0.08), inset 0 1px 0 hsl(0 0% 100% / 0.9);
     --shadow-glow: 0 0 40px hsl(262 83% 58% / 0.2);
     --shadow-card: 0 4px 24px hsl(0 0% 0% / 0.08);
-    --shadow-premium: 
-      0 2px 4px hsl(0 0% 0% / 0.02),
-      0 4px 8px hsl(0 0% 0% / 0.04),
-      0 8px 16px hsl(0 0% 0% / 0.06),
-      0 16px 32px hsl(0 0% 0% / 0.08),
-      inset 0 1px 0 hsl(0 0% 100% / 0.8),
-      inset 0 -1px 0 hsl(0 0% 0% / 0.05);
 
     /* Category colors */
     --category-work: 35 90% 55%;
@@ -121,27 +109,15 @@
     --glass-bg: 240 10% 12% / 0.7;
     --glass-border: 0 0% 100% / 0.08;
     
-    /* 3D Shadows - Dark */
-    --shadow-3d: 
-      0 1px 2px hsl(0 0% 0% / 0.2),
-      0 4px 8px hsl(0 0% 0% / 0.25),
-      0 8px 16px hsl(0 0% 0% / 0.3),
-      0 16px 32px hsl(0 0% 0% / 0.35);
-    --shadow-3d-hover: 
-      0 2px 4px hsl(0 0% 0% / 0.2),
-      0 8px 16px hsl(0 0% 0% / 0.3),
-      0 16px 32px hsl(0 0% 0% / 0.4),
-      0 24px 48px hsl(0 0% 0% / 0.45);
+    /* 3D Shadows - Dark (Static) */
+    --shadow-elegant: 
+      0 1px 2px hsl(0 0% 0% / 0.15),
+      0 4px 8px hsl(0 0% 0% / 0.2),
+      0 8px 16px hsl(0 0% 0% / 0.25),
+      0 16px 32px hsl(0 0% 0% / 0.3);
     --shadow-glass: 0 8px 32px hsl(0 0% 0% / 0.4), inset 0 1px 0 hsl(0 0% 100% / 0.05);
     --shadow-glow: 0 0 40px hsl(262 83% 65% / 0.25);
     --shadow-card: 0 4px 24px hsl(0 0% 0% / 0.5);
-    --shadow-premium: 
-      0 2px 4px hsl(0 0% 0% / 0.15),
-      0 4px 8px hsl(0 0% 0% / 0.2),
-      0 8px 16px hsl(0 0% 0% / 0.25),
-      0 16px 32px hsl(0 0% 0% / 0.3),
-      inset 0 1px 0 hsl(0 0% 100% / 0.1),
-      inset 0 -1px 0 hsl(0 0% 0% / 0.2);
 
     /* Category colors - slightly brighter for dark mode */
     --category-work: 40 90% 55%;
@@ -205,208 +181,96 @@
   }
 
   /* ============================================
-     3D Card Effects
+     Elegant Card - Static 3D Effect (No Hover)
      ============================================ */
-  .card-3d {
+  .card-elegant {
     position: relative;
-    transform-style: preserve-3d;
-    perspective: 1000px;
-    box-shadow: var(--shadow-3d);
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: var(--shadow-elegant);
+    transition: transform 0.15s ease;
   }
 
-  .card-3d:hover {
-    box-shadow: var(--shadow-3d-hover);
-    transform: translateY(-6px);
-  }
-
-  .card-3d:active {
-    transform: translateY(-2px) scale(0.98);
-  }
-
-  /* Inner highlight for 3D depth */
-  .card-3d::before {
+  /* Inner highlight for depth */
+  .card-elegant::before {
     content: '';
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: linear-gradient(
-      135deg,
-      hsl(0 0% 100% / 0.15) 0%,
-      transparent 50%,
-      hsl(0 0% 0% / 0.05) 100%
-    );
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  /* Bottom edge shadow for 3D effect */
-  .card-3d::after {
-    content: '';
-    position: absolute;
-    bottom: -4px;
-    left: 8px;
-    right: 8px;
-    height: 20px;
-    background: inherit;
-    filter: blur(12px);
-    opacity: 0.4;
-    border-radius: 50%;
-    z-index: -1;
-    transition: all 0.4s ease;
-  }
-
-  .card-3d:hover::after {
-    bottom: -8px;
-    opacity: 0.6;
-    filter: blur(16px);
-  }
-
-  /* ============================================
-     Premium Category Card
-     ============================================ */
-  .category-premium {
-    position: relative;
-    border-radius: 1.25rem;
-    overflow: hidden;
-    transform-style: preserve-3d;
-    perspective: 800px;
-    box-shadow: 
-      0 4px 12px hsl(0 0% 0% / 0.15),
-      0 8px 24px hsl(0 0% 0% / 0.1),
-      inset 0 1px 0 hsl(0 0% 100% / 0.4);
-    transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  }
-
-  .category-premium:hover {
-    transform: translateY(-8px) scale(1.03) rotateX(5deg);
-    box-shadow: 
-      0 8px 24px hsl(0 0% 0% / 0.2),
-      0 16px 48px hsl(0 0% 0% / 0.15),
-      0 24px 64px hsl(0 0% 0% / 0.1),
-      inset 0 1px 0 hsl(0 0% 100% / 0.5);
-  }
-
-  .category-premium:active {
-    transform: translateY(-2px) scale(0.97);
-  }
-
-  /* Glass shine effect */
-  .category-premium::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      hsl(0 0% 100% / 0.3) 50%,
-      transparent 100%
-    );
-    z-index: 10;
-    transition: left 0.6s ease;
-  }
-
-  .category-premium:hover::before {
-    left: 100%;
-  }
-
-  /* Inner glow */
-  .category-premium::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: radial-gradient(
-      ellipse at top,
-      hsl(0 0% 100% / 0.25) 0%,
-      transparent 60%
-    );
-    pointer-events: none;
-    z-index: 2;
-  }
-
-  /* Reflection on bottom */
-  .category-premium-reflection {
-    position: absolute;
-    bottom: -50%;
-    left: 10%;
-    right: 10%;
-    height: 50%;
-    background: inherit;
-    filter: blur(8px);
-    opacity: 0.3;
-    transform: scaleY(-0.5);
-    border-radius: 50%;
-    z-index: -1;
-    transition: opacity 0.3s ease;
-  }
-
-  .category-premium:hover .category-premium-reflection {
-    opacity: 0.5;
-  }
-
-  /* ============================================
-     Reminder Card 3D
-     ============================================ */
-  .reminder-card-3d {
-    position: relative;
-    box-shadow: var(--shadow-premium);
-    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    transform: translateZ(0);
-  }
-
-  .reminder-card-3d:hover {
-    transform: translateY(-4px) translateZ(10px);
-    box-shadow: 
-      0 6px 16px hsl(0 0% 0% / 0.1),
-      0 12px 32px hsl(0 0% 0% / 0.12),
-      inset 0 1px 0 hsl(0 0% 100% / 0.9);
-  }
-
-  .dark .reminder-card-3d:hover {
-    box-shadow: 
-      0 6px 16px hsl(0 0% 0% / 0.3),
-      0 12px 32px hsl(0 0% 0% / 0.4),
-      inset 0 1px 0 hsl(0 0% 100% / 0.1);
-  }
-
-  /* ============================================
-     Stat Card 3D
-     ============================================ */
-  .stat-card-3d {
-    position: relative;
-    overflow: hidden;
-    box-shadow: 
-      0 4px 12px hsl(0 0% 0% / 0.15),
-      0 8px 24px hsl(0 0% 0% / 0.1),
-      inset 0 1px 0 hsl(0 0% 100% / 0.3);
-    transition: all 0.3s ease;
-  }
-
-  .stat-card-3d::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 50%;
     background: linear-gradient(
       to bottom,
-      hsl(0 0% 100% / 0.2) 0%,
-      transparent 100%
+      hsl(0 0% 100% / 0.08) 0%,
+      transparent 40%
     );
     pointer-events: none;
   }
 
-  .stat-card-3d:hover {
-    transform: translateY(-4px) scale(1.02);
-    box-shadow: 
-      0 8px 20px hsl(0 0% 0% / 0.2),
-      0 16px 40px hsl(0 0% 0% / 0.15),
-      inset 0 1px 0 hsl(0 0% 100% / 0.4);
+  /* Tap feedback only */
+  .card-elegant:active {
+    transform: scale(0.98);
+  }
+
+  /* ============================================
+     Stat Card - Neutral base with colored accent
+     ============================================ */
+  .stat-card {
+    position: relative;
+    box-shadow: var(--shadow-elegant);
+    transition: transform 0.15s ease;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      to bottom,
+      hsl(0 0% 100% / 0.06) 0%,
+      transparent 50%
+    );
+    pointer-events: none;
+  }
+
+  .stat-card:active {
+    transform: scale(0.97);
+  }
+
+  /* ============================================
+     Category Card - Elegant with colored border
+     ============================================ */
+  .category-card {
+    position: relative;
+    box-shadow: var(--shadow-elegant);
+    transition: transform 0.15s ease;
+  }
+
+  .category-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      to bottom,
+      hsl(0 0% 100% / 0.1) 0%,
+      transparent 50%
+    );
+    pointer-events: none;
+  }
+
+  .category-card:active {
+    transform: scale(0.95);
+  }
+
+  /* ============================================
+     Reminder Card - Subtle 3D
+     ============================================ */
+  .reminder-card {
+    position: relative;
+    box-shadow: var(--shadow-elegant);
+    transition: transform 0.15s ease;
+  }
+
+  .reminder-card:active {
+    transform: scale(0.98);
   }
 
   .gradient-text {
@@ -431,26 +295,6 @@
     mask-composite: exclude;
     pointer-events: none;
   }
-
-  .glow {
-    @apply relative;
-  }
-
-  .glow::after {
-    content: '';
-    position: absolute;
-    inset: -2px;
-    border-radius: inherit;
-    background: var(--gradient-primary);
-    filter: blur(20px);
-    opacity: 0.3;
-    z-index: -1;
-    transition: opacity 0.3s ease;
-  }
-
-  .glow:hover::after {
-    opacity: 0.5;
-  }
 }
 
 @layer utilities {
@@ -460,15 +304,6 @@
 
   .animate-pulse-slow {
     animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  .animate-gradient {
-    background-size: 200% 200%;
-    animation: gradient 8s ease infinite;
-  }
-
-  .animate-shimmer {
-    animation: shimmer 2s infinite;
   }
 
   .scrollbar-hide {
@@ -487,27 +322,6 @@
   }
   50% {
     transform: translateY(-10px);
-  }
-}
-
-@keyframes gradient {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
   }
 }
 

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Calendar, Bell, Settings, ChevronRight, Clock, Sparkles, TrendingUp, Zap } from 'lucide-react';
+import { Plus, Bell, Settings, ChevronRight, Clock, Sparkles, TrendingUp, Zap } from 'lucide-react';
 import { useReminders } from '@/contexts/ReminderContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useNativeNotifications } from '@/hooks/useNativeNotifications';
@@ -11,22 +11,41 @@ import { useNavigate } from 'react-router-dom';
 import { format, isToday, isTomorrow, isPast } from 'date-fns';
 import { it } from 'date-fns/locale';
 
-const categoryColorMap: Record<string, string> = {
-  work: 'from-amber-500 via-orange-500 to-orange-600',
-  personal: 'from-sky-400 via-blue-500 to-blue-600',
-  friends: 'from-pink-500 via-rose-500 to-rose-600',
-  health: 'from-emerald-400 via-green-500 to-green-600',
-  finance: 'from-violet-500 via-purple-500 to-purple-600',
-  default: 'from-primary via-purple-500 to-accent',
+// Colori per icone e numeri nelle stat cards (su base neutra)
+const statAccentColors = {
+  today: 'text-amber-500',
+  completed: 'text-emerald-500',
+  overdue: 'text-rose-500',
 };
 
-const categoryGlowMap: Record<string, string> = {
-  work: 'shadow-amber-500/40',
-  personal: 'shadow-sky-500/40',
-  friends: 'shadow-pink-500/40',
-  health: 'shadow-emerald-500/40',
-  finance: 'shadow-violet-500/40',
-  default: 'shadow-primary/40',
+// Colori bordo per category cards
+const categoryBorderColors: Record<string, string> = {
+  work: 'border-amber-500/40',
+  personal: 'border-sky-500/40',
+  friends: 'border-pink-500/40',
+  health: 'border-emerald-500/40',
+  finance: 'border-violet-500/40',
+  default: 'border-primary/40',
+};
+
+// Colori icona per category cards
+const categoryIconBg: Record<string, string> = {
+  work: 'bg-amber-500/15',
+  personal: 'bg-sky-500/15',
+  friends: 'bg-pink-500/15',
+  health: 'bg-emerald-500/15',
+  finance: 'bg-violet-500/15',
+  default: 'bg-primary/15',
+};
+
+// Colori badge counter
+const categoryBadgeColors: Record<string, string> = {
+  work: 'bg-amber-500 text-white',
+  personal: 'bg-sky-500 text-white',
+  friends: 'bg-pink-500 text-white',
+  health: 'bg-emerald-500 text-white',
+  finance: 'bg-violet-500 text-white',
+  default: 'bg-primary text-white',
 };
 
 export function Dashboard() {
@@ -63,29 +82,15 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
-      {/* Ambient Background */}
+      {/* Ambient Background - subtle */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <motion.div
-          animate={{ 
-            scale: [1, 1.2, 1],
-            opacity: [0.15, 0.25, 0.15]
-          }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-gradient-to-br from-primary/30 to-accent/20 blur-3xl"
-        />
-        <motion.div
-          animate={{ 
-            scale: [1.2, 1, 1.2],
-            opacity: [0.1, 0.2, 0.1]
-          }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-          className="absolute top-1/2 -left-32 w-64 h-64 rounded-full bg-gradient-to-br from-category-friends/30 to-primary/20 blur-3xl"
-        />
+        <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-gradient-to-br from-primary/10 to-accent/5 blur-3xl" />
+        <div className="absolute top-1/2 -left-32 w-64 h-64 rounded-full bg-gradient-to-br from-category-friends/10 to-primary/5 blur-3xl" />
       </div>
 
       {/* Main Content */}
       <div className="relative z-10 min-h-screen flex flex-col">
-        {/* Hero Header */}
+        {/* Header */}
         <header className="safe-area-top px-5 pt-4 pb-6">
           <div className="flex items-center justify-between mb-6">
             <motion.div
@@ -106,7 +111,7 @@ export function Dashboard() {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={requestPermission}
-                  className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30"
+                  className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg"
                 >
                   <Bell className="w-5 h-5 text-white" />
                 </motion.button>
@@ -114,57 +119,59 @@ export function Dashboard() {
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setShowSettings(true)}
-                className="w-10 h-10 rounded-xl glass flex items-center justify-center card-3d"
+                className="w-10 h-10 rounded-xl glass card-elegant flex items-center justify-center"
               >
                 <Settings className="w-5 h-5" />
               </motion.button>
             </div>
           </div>
 
-          {/* Quick Stats - 3D Cards */}
+          {/* Stat Cards - Base neutra con accenti colorati */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             className="grid grid-cols-3 gap-3"
           >
+            {/* Oggi */}
             <motion.div 
-              whileHover={{ scale: 1.05, y: -4 }}
-              whileTap={{ scale: 0.95 }}
-              className="stat-card-3d bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-4 text-center"
+              whileTap={{ scale: 0.97 }}
+              className="stat-card bg-card border border-border rounded-2xl p-4 text-center"
             >
-              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                <Clock className="w-5 h-5 text-white" />
+              <div className={`w-10 h-10 mx-auto mb-2 rounded-xl bg-amber-500/15 flex items-center justify-center`}>
+                <Clock className={`w-5 h-5 ${statAccentColors.today}`} />
               </div>
-              <p className="text-2xl font-bold text-white drop-shadow-sm">{stats.pendingToday}</p>
-              <p className="text-xs text-white/80 font-medium">Oggi</p>
+              <p className={`text-2xl font-bold ${statAccentColors.today}`}>{stats.pendingToday}</p>
+              <p className="text-xs text-muted-foreground font-medium">Oggi</p>
             </motion.div>
+
+            {/* Completati */}
             <motion.div 
-              whileHover={{ scale: 1.05, y: -4 }}
-              whileTap={{ scale: 0.95 }}
-              className="stat-card-3d bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl p-4 text-center"
+              whileTap={{ scale: 0.97 }}
+              className="stat-card bg-card border border-border rounded-2xl p-4 text-center"
             >
-              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                <TrendingUp className="w-5 h-5 text-white" />
+              <div className={`w-10 h-10 mx-auto mb-2 rounded-xl bg-emerald-500/15 flex items-center justify-center`}>
+                <TrendingUp className={`w-5 h-5 ${statAccentColors.completed}`} />
               </div>
-              <p className="text-2xl font-bold text-white drop-shadow-sm">{stats.completedThisWeek}</p>
-              <p className="text-xs text-white/80 font-medium">Completati</p>
+              <p className={`text-2xl font-bold ${statAccentColors.completed}`}>{stats.completedThisWeek}</p>
+              <p className="text-xs text-muted-foreground font-medium">Completati</p>
             </motion.div>
+
+            {/* Scaduti */}
             <motion.div 
-              whileHover={{ scale: 1.05, y: -4 }}
-              whileTap={{ scale: 0.95 }}
-              className="stat-card-3d bg-gradient-to-br from-rose-500 to-red-600 rounded-2xl p-4 text-center"
+              whileTap={{ scale: 0.97 }}
+              className="stat-card bg-card border border-border rounded-2xl p-4 text-center"
             >
-              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                <Zap className="w-5 h-5 text-white" />
+              <div className={`w-10 h-10 mx-auto mb-2 rounded-xl bg-rose-500/15 flex items-center justify-center`}>
+                <Zap className={`w-5 h-5 ${statAccentColors.overdue}`} />
               </div>
-              <p className="text-2xl font-bold text-white drop-shadow-sm">{stats.overdueCount}</p>
-              <p className="text-xs text-white/80 font-medium">Scaduti</p>
+              <p className={`text-2xl font-bold ${statAccentColors.overdue}`}>{stats.overdueCount}</p>
+              <p className="text-xs text-muted-foreground font-medium">Scaduti</p>
             </motion.div>
           </motion.div>
         </header>
 
-        {/* Categories Scroll - Premium 3D */}
+        {/* Categories - Eleganti con bordo colorato */}
         <motion.section
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -181,97 +188,73 @@ export function Dashboard() {
             </button>
           </div>
 
-          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-5 px-5" style={{ perspective: '1000px' }}>
+          <div className="flex gap-3 overflow-x-auto pb-3 scrollbar-hide -mx-5 px-5">
             {categories.map((category, i) => {
               const count = reminders.filter(r => r.categoryId === category.id && !r.isCompleted).length;
-              const gradient = categoryColorMap[category.color] || categoryColorMap.default;
-              const glow = categoryGlowMap[category.color] || categoryGlowMap.default;
+              const borderColor = categoryBorderColors[category.color] || categoryBorderColors.default;
+              const iconBg = categoryIconBg[category.color] || categoryIconBg.default;
+              const badgeColor = categoryBadgeColors[category.color] || categoryBadgeColors.default;
               
               return (
                 <motion.button
                   key={category.id}
-                  initial={{ opacity: 0, scale: 0.8, rotateY: -30 }}
-                  animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-                  transition={{ 
-                    delay: 0.15 + i * 0.08,
-                    type: 'spring',
-                    stiffness: 200,
-                    damping: 20
-                  }}
-                  whileHover={{ 
-                    scale: 1.08, 
-                    y: -8,
-                    rotateY: 5,
-                    rotateX: 5,
-                  }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 + i * 0.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => navigate(`/category/${category.id}`)}
-                  className="flex-shrink-0 group"
-                  style={{ transformStyle: 'preserve-3d' }}
+                  className="flex-shrink-0"
                 >
                   <div 
-                    className={`category-premium w-24 h-24 bg-gradient-to-br ${gradient} flex flex-col items-center justify-center shadow-xl ${glow}`}
+                    className={`category-card w-20 h-20 rounded-2xl bg-card border-2 ${borderColor} flex flex-col items-center justify-center relative`}
                   >
-                    {/* Glass overlay */}
-                    <div className="absolute inset-0 rounded-[1.25rem] bg-gradient-to-b from-white/30 via-transparent to-black/10 pointer-events-none" />
+                    {/* Icon background */}
+                    <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center mb-1`}>
+                      <span className="text-2xl">{category.icon}</span>
+                    </div>
                     
-                    {/* Icon with 3D effect */}
-                    <motion.span 
-                      className="text-3xl mb-1 drop-shadow-lg relative z-10"
-                      style={{ textShadow: '0 4px 8px rgba(0,0,0,0.3)' }}
-                    >
-                      {category.icon}
-                    </motion.span>
-                    
-                    {/* Badge */}
+                    {/* Counter badge */}
                     {count > 0 && (
-                      <motion.span 
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-white text-xs font-bold flex items-center justify-center text-gray-800 shadow-lg border-2 border-white/50 z-20"
-                        style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
+                      <span 
+                        className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full ${badgeColor} text-xs font-bold flex items-center justify-center shadow-md`}
                       >
                         {count}
-                      </motion.span>
+                      </span>
                     )}
-
-                    {/* Reflection */}
-                    <div className="category-premium-reflection" />
                   </div>
-                  <p className="text-xs mt-2.5 text-center font-semibold truncate w-24">{category.name}</p>
+                  <p className="text-xs mt-2 text-center font-medium truncate w-20">{category.name}</p>
                 </motion.button>
               );
             })}
 
-            {/* Add Category Button - 3D */}
+            {/* Add Category Button */}
             <motion.button
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.15 + categories.length * 0.08 }}
-              whileHover={{ scale: 1.05, y: -4 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 + categories.length * 0.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowAddCategory(true)}
               className="flex-shrink-0"
             >
-              <div className="w-24 h-24 rounded-[1.25rem] border-2 border-dashed border-border flex flex-col items-center justify-center bg-card/50 backdrop-blur-sm shadow-lg transition-all hover:border-primary/50 hover:bg-card/80">
-                <Plus className="w-7 h-7 text-muted-foreground" />
+              <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-border flex flex-col items-center justify-center bg-card/50">
+                <Plus className="w-6 h-6 text-muted-foreground" />
               </div>
-              <p className="text-xs mt-2.5 text-center text-muted-foreground font-medium">Aggiungi</p>
+              <p className="text-xs mt-2 text-center text-muted-foreground">Aggiungi</p>
             </motion.button>
           </div>
         </motion.section>
 
-        {/* Tab Switcher - 3D */}
+        {/* Tab Switcher */}
         <div className="px-5 mb-4">
-          <div className="bg-card/80 backdrop-blur-xl border border-border rounded-2xl p-1.5 flex shadow-lg card-3d">
+          <div className="card-elegant bg-card border border-border rounded-2xl p-1.5 flex">
             {(['today', 'upcoming', 'all'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                   activeTab === tab 
-                    ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/30' 
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'text-muted-foreground'
                 }`}
               >
                 {tab === 'today' ? 'Oggi' : tab === 'upcoming' ? 'Prossimi' : 'Tutti'}
@@ -280,7 +263,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Reminders List - 3D Cards */}
+        {/* Reminders List */}
         <section className="flex-1 px-5 pb-24">
           <AnimatePresence mode="wait">
             <motion.div
@@ -292,12 +275,12 @@ export function Dashboard() {
             >
               {filteredReminders.length === 0 ? (
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="card-3d bg-card border border-border rounded-2xl p-8 text-center"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="card-elegant bg-card border border-border rounded-2xl p-8 text-center"
                 >
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                    <Sparkles className="w-8 h-8 text-primary" />
+                  <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center">
+                    <Sparkles className="w-7 h-7 text-primary" />
                   </div>
                   <h3 className="font-semibold mb-1">Tutto fatto!</h3>
                   <p className="text-sm text-muted-foreground">
@@ -309,9 +292,9 @@ export function Dashboard() {
               ) : (
                 filteredReminders.map((reminder, i) => {
                   const category = getCategoryById(reminder.categoryId);
-                  const gradient = category 
-                    ? categoryColorMap[category.color] || categoryColorMap.default
-                    : categoryColorMap.default;
+                  const iconBg = category 
+                    ? categoryIconBg[category.color] || categoryIconBg.default
+                    : categoryIconBg.default;
                   const isOverdue = isPast(new Date(reminder.date)) && !isToday(new Date(reminder.date));
 
                   return (
@@ -319,21 +302,16 @@ export function Dashboard() {
                       key={reminder.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                      whileHover={{ scale: 1.01, y: -2 }}
+                      transition={{ delay: i * 0.03 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => category && navigate(`/category/${category.id}`)}
-                      className={`reminder-card-3d bg-card border border-border rounded-2xl p-4 flex items-center gap-4 cursor-pointer group ${
+                      className={`reminder-card bg-card border border-border rounded-2xl p-4 flex items-center gap-4 cursor-pointer ${
                         isOverdue ? 'ring-2 ring-destructive/50' : ''
                       }`}
                     >
-                      <motion.div 
-                        whileHover={{ scale: 1.1, rotate: 5 }}
-                        className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg flex-shrink-0`}
-                        style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}
-                      >
-                        <span className="text-xl drop-shadow-sm">{category?.icon || '📌'}</span>
-                      </motion.div>
+                      <div className={`w-12 h-12 rounded-xl ${iconBg} flex items-center justify-center flex-shrink-0`}>
+                        <span className="text-xl">{category?.icon || '📌'}</span>
+                      </div>
                       
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold truncate">{reminder.title}</h3>
@@ -350,7 +328,7 @@ export function Dashboard() {
                         </div>
                       </div>
 
-                      <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground group-hover:translate-x-1 transition-all flex-shrink-0" />
+                      <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                     </motion.div>
                   );
                 })
@@ -359,11 +337,10 @@ export function Dashboard() {
           </AnimatePresence>
         </section>
 
-        {/* Floating Action Button - Premium 3D */}
+        {/* Floating Action Button */}
         <motion.button
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          whileHover={{ scale: 1.1, rotate: 90 }}
           whileTap={{ scale: 0.9 }}
           onClick={() => {
             if (categories.length > 0) {
@@ -372,12 +349,9 @@ export function Dashboard() {
               setShowAddCategory(true);
             }
           }}
-          className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center z-50 safe-area-bottom"
-          style={{
-            boxShadow: '0 4px 16px rgba(139, 92, 246, 0.4), 0 8px 32px rgba(139, 92, 246, 0.3), inset 0 1px 0 rgba(255,255,255,0.3)'
-          }}
+          className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-primary flex items-center justify-center z-50 safe-area-bottom shadow-lg"
         >
-          <Plus className="w-6 h-6 text-white drop-shadow-sm" />
+          <Plus className="w-6 h-6 text-white" />
         </motion.button>
       </div>
 
