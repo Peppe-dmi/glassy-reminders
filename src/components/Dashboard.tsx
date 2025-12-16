@@ -6,6 +6,7 @@ import { useNativeNotifications } from '@/hooks/useNativeNotifications';
 import { AddCategoryDialog } from './AddCategoryDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { ThemeToggle } from './ThemeToggle';
+import { CategoryCarousel } from './CategoryCarousel';
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, isToday, isTomorrow, isPast } from 'date-fns';
@@ -18,17 +19,7 @@ const statAccentColors = {
   overdue: 'text-rose-500',
 };
 
-// Colori bordo per category cards
-const categoryBorderColors: Record<string, string> = {
-  work: 'border-amber-500/40',
-  personal: 'border-sky-500/40',
-  friends: 'border-pink-500/40',
-  health: 'border-emerald-500/40',
-  finance: 'border-violet-500/40',
-  default: 'border-primary/40',
-};
-
-// Colori icona per category cards
+// Colori icona per category cards (usato nei reminder)
 const categoryIconBg: Record<string, string> = {
   work: 'bg-amber-500/15',
   personal: 'bg-sky-500/15',
@@ -36,16 +27,6 @@ const categoryIconBg: Record<string, string> = {
   health: 'bg-emerald-500/15',
   finance: 'bg-violet-500/15',
   default: 'bg-primary/15',
-};
-
-// Colori badge counter
-const categoryBadgeColors: Record<string, string> = {
-  work: 'bg-amber-500 text-white',
-  personal: 'bg-sky-500 text-white',
-  friends: 'bg-pink-500 text-white',
-  health: 'bg-emerald-500 text-white',
-  finance: 'bg-violet-500 text-white',
-  default: 'bg-primary text-white',
 };
 
 export function Dashboard() {
@@ -171,14 +152,14 @@ export function Dashboard() {
           </motion.div>
         </header>
 
-        {/* Categories - Eleganti con bordo colorato */}
+        {/* Categories Carousel */}
         <motion.section
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="px-5 mb-4"
+          className="mb-4"
         >
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3 px-5">
             <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Categorie</h2>
             <button
               onClick={() => setShowAddCategory(true)}
@@ -188,70 +169,11 @@ export function Dashboard() {
             </button>
           </div>
 
-          <div className="flex gap-4 overflow-x-auto pb-6 pt-2 scrollbar-hide -mx-5 px-5 items-end">
-            {categories.map((category, i) => {
-              const count = reminders.filter(r => r.categoryId === category.id && !r.isCompleted).length;
-              const borderColor = categoryBorderColors[category.color] || categoryBorderColors.default;
-              const iconBg = categoryIconBg[category.color] || categoryIconBg.default;
-              const badgeColor = categoryBadgeColors[category.color] || categoryBadgeColors.default;
-              
-              // Rotazione alternata: -4°, +3°, -4°, +3°...
-              const rotation = i % 2 === 0 ? -4 : 3;
-              // Offset verticale alternato per effetto dinamico
-              const yOffset = i % 2 === 0 ? 0 : 8;
-              
-              return (
-                <motion.button
-                  key={category.id}
-                  initial={{ opacity: 0, y: 20, rotate: 0 }}
-                  animate={{ opacity: 1, y: yOffset, rotate: rotation }}
-                  transition={{ 
-                    delay: 0.1 + i * 0.06,
-                    type: 'spring',
-                    stiffness: 200,
-                    damping: 15
-                  }}
-                  whileTap={{ scale: 0.92, rotate: 0 }}
-                  onClick={() => navigate(`/category/${category.id}`)}
-                  className="flex-shrink-0"
-                >
-                  <div 
-                    className={`category-card w-20 h-20 rounded-2xl bg-card border-2 ${borderColor} flex flex-col items-center justify-center relative`}
-                  >
-                    {/* Icon background */}
-                    <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center mb-1`}>
-                      <span className="text-2xl">{category.icon}</span>
-                    </div>
-                    
-                    {/* Counter badge */}
-                    {count > 0 && (
-                      <span 
-                        className={`absolute -top-2 -right-2 w-5 h-5 rounded-full ${badgeColor} text-xs font-bold flex items-center justify-center shadow-md`}
-                      >
-                        {count}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs mt-2 text-center font-medium truncate w-20">{category.name}</p>
-                </motion.button>
-              );
-            })}
-
-            {/* Add Category Button - leggermente ruotato */}
-            <motion.button
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: categories.length % 2 === 0 ? 0 : 8, rotate: categories.length % 2 === 0 ? -4 : 3 }}
-              transition={{ delay: 0.1 + categories.length * 0.06 }}
-              whileTap={{ scale: 0.92, rotate: 0 }}
-              onClick={() => setShowAddCategory(true)}
-              className="flex-shrink-0"
-            >
-              <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-border flex flex-col items-center justify-center bg-card/50">
-                <Plus className="w-6 h-6 text-muted-foreground" />
-              </div>
-              <p className="text-xs mt-2 text-center text-muted-foreground">Aggiungi</p>
-            </motion.button>
-          </div>
+          {/* Carousel centrato con scala dinamica */}
+          <CategoryCarousel 
+            categories={categories} 
+            reminders={reminders.map(r => ({ categoryId: r.categoryId, isCompleted: r.isCompleted }))} 
+          />
         </motion.section>
 
         {/* Tab Switcher */}
