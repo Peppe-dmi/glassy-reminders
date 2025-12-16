@@ -195,8 +195,8 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
                 width: `${size}px`, 
                 height: `${size}px`,
                 boxShadow: isLarge 
-                  ? '0 16px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.1)' 
-                  : `0 ${4 * scale}px ${12 * scale}px rgba(0,0,0,0.25)`,
+                  ? '0 8px 32px rgba(255,255,255,0.1), 0 0 0 1px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.1)' 
+                  : `0 ${4 * scale}px ${12 * scale}px rgba(255,255,255,0.05)`,
                 transition: 'width 0.15s ease-out, height 0.15s ease-out, box-shadow 0.15s ease-out',
               }}
             >

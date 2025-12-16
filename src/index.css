@@ -109,15 +109,15 @@
     --glass-bg: 240 10% 12% / 0.7;
     --glass-border: 0 0% 100% / 0.08;
     
-    /* 3D Shadows - Dark (Static) */
+    /* 3D Shadows - Dark (with light glow for depth) */
     --shadow-elegant: 
-      0 1px 2px hsl(0 0% 0% / 0.15),
-      0 4px 8px hsl(0 0% 0% / 0.2),
-      0 8px 16px hsl(0 0% 0% / 0.25),
-      0 16px 32px hsl(0 0% 0% / 0.3);
-    --shadow-glass: 0 8px 32px hsl(0 0% 0% / 0.4), inset 0 1px 0 hsl(0 0% 100% / 0.05);
+      0 1px 2px hsl(0 0% 100% / 0.03),
+      0 4px 12px hsl(0 0% 100% / 0.04),
+      0 8px 24px hsl(0 0% 100% / 0.05),
+      0 -1px 0 hsl(0 0% 100% / 0.08);
+    --shadow-glass: 0 8px 32px hsl(0 0% 100% / 0.06), inset 0 1px 0 hsl(0 0% 100% / 0.1);
     --shadow-glow: 0 0 40px hsl(262 83% 65% / 0.25);
-    --shadow-card: 0 4px 24px hsl(0 0% 0% / 0.5);
+    --shadow-card: 0 4px 24px hsl(0 0% 100% / 0.08), 0 0 0 1px hsl(0 0% 100% / 0.05);
 
     /* Category colors - slightly brighter for dark mode */
     --category-work: 40 90% 55%;
