@@ -3,6 +3,16 @@ import { motion, useMotionValue, animate } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Category } from '@/types/reminder';
+import { useReminders } from '@/contexts/ReminderContext';
+import { MoreVertical, Trash2, Edit } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { EditCategoryDialog } from './EditCategoryDialog';
+import { toast } from 'sonner';
 
 interface CategoryCarouselProps {
   categories: Category[];
@@ -40,7 +50,7 @@ const categoryBadgeColors: Record<string, string> = {
 };
 
 const CARD_SIZE = 75;
-const CARD_GAP = 20;
+const CARD_GAP = 16;
 
 // Feedback tattile leggero
 const hapticFeedback = () => {
@@ -52,8 +62,12 @@ const hapticFeedback = () => {
 export function CategoryCarousel({ categories, reminders }: CategoryCarouselProps) {
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { deleteCategory } = useReminders();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
+  
+  // Dialog modifica
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   
   // Indice corrente (può essere frazionario durante lo scroll)
   const currentIndex = useMotionValue(0);
@@ -67,9 +81,8 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
   const lastTime = useRef(0);
   const velocity = useRef(0);
   
-  // Per il feedback tattile - inizializza a 0 subito
-  const lastSnappedIndex = useRef(0);
-  const isInitialized = useRef(false);
+  // Per il feedback tattile
+  const lastSnappedIndex = useRef(-1);
   
   const isDark = theme === 'dark';
 
@@ -85,28 +98,33 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     return () => window.removeEventListener('resize', updateWidth);
   }, []);
 
+  // Inizializza vibrazione dopo mount
+  useEffect(() => {
+    // Inizializza lastSnappedIndex al valore corrente dopo un breve delay
+    const timer = setTimeout(() => {
+      const len = categories.length;
+      if (len > 0) {
+        lastSnappedIndex.current = 0;
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [categories.length]);
+
   // Aggiorna displayIndex e gestisce vibrazione
   useEffect(() => {
     const unsubscribe = currentIndex.on('change', (v) => {
       setDisplayIndex(v);
       
-      // Calcola l'indice snappato corrente
       const len = categories.length;
       if (len === 0) return;
       
       let snapped = Math.round(v);
-      // Wrap around
       snapped = ((snapped % len) + len) % len;
       
-      // Vibra solo se cambia E siamo già inizializzati
-      if (isInitialized.current && snapped !== lastSnappedIndex.current) {
+      // Vibra se cambiato e già inizializzato
+      if (lastSnappedIndex.current >= 0 && snapped !== lastSnappedIndex.current) {
         hapticFeedback();
-      }
-      lastSnappedIndex.current = snapped;
-      
-      // Marca come inizializzato dopo il primo render
-      if (!isInitialized.current) {
-        isInitialized.current = true;
+        lastSnappedIndex.current = snapped;
       }
     });
     return () => unsubscribe();
@@ -117,7 +135,6 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     const len = categories.length;
     if (len === 0) return;
     
-    // Simula inerzia
     const friction = 0.85;
     const minVelocity = 0.05;
     
@@ -129,7 +146,6 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
       currentVel *= friction;
     }
     
-    // Snap all'indice più vicino
     const snapped = Math.round(projected);
     
     animate(currentIndex, snapped, {
@@ -140,7 +156,7 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     });
   }, [categories.length, currentIndex]);
 
-  // Gestione drag - sensibilità ridotta
+  // Gestione drag
   const handleDragStart = (clientX: number) => {
     isDragging.current = true;
     startX.current = clientX;
@@ -154,12 +170,10 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     if (!isDragging.current) return;
     
     const diff = clientX - startX.current;
-    // Sensibilità: quanto px per cambiare 1 indice (più alto = meno sensibile)
     const pxPerIndex = 120;
     const newIndex = startIndex.current - diff / pxPerIndex;
     currentIndex.set(newIndex);
     
-    // Calcola velocità
     const now = Date.now();
     const dt = now - lastTime.current;
     if (dt > 0) {
@@ -197,8 +211,7 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     const current = currentIndex.get();
     const len = categories.length;
     
-    // Trova il percorso più breve
-    let diff = index - (current % len);
+    let diff = index - (((current % len) + len) % len);
     if (diff > len / 2) diff -= len;
     if (diff < -len / 2) diff += len;
     
@@ -207,6 +220,12 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
       stiffness: 100,
       damping: 18,
     });
+  };
+
+  const handleDelete = (categoryId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    deleteCategory(categoryId);
+    toast.success('Categoria eliminata');
   };
 
   if (categories.length === 0) {
@@ -218,158 +237,193 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
   }
 
   const len = categories.length;
-  const centerX = containerWidth / 2;
-  
-  // Indice centrale corrente (wrapped)
   const currentCenterIndex = ((Math.round(displayIndex) % len) + len) % len;
 
   return (
-    <div 
-      ref={containerRef}
-      className="relative overflow-hidden pb-4 pt-6 select-none cursor-grab active:cursor-grabbing"
-      style={{ minHeight: '200px' }}
-      onMouseDown={onMouseDown}
-      onMouseMove={onMouseMove}
-      onMouseUp={onMouseUp}
-      onMouseLeave={onMouseLeave}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-    >
-      {/* Container delle card */}
-      <div className="relative h-36 flex items-center justify-center">
-        {categories.map((category, i) => {
-          const count = reminders.filter(r => r.categoryId === category.id && !r.isCompleted).length;
-          const borderColor = categoryBorderColors[category.color] || categoryBorderColors.default;
-          const iconBg = categoryIconBg[category.color] || categoryIconBg.default;
-          const badgeColor = categoryBadgeColors[category.color] || categoryBadgeColors.default;
-          
-          // Calcola distanza dall'indice centrale (considerando loop)
-          let offset = i - displayIndex;
-          // Wrap per loop infinito
-          while (offset > len / 2) offset -= len;
-          while (offset < -len / 2) offset += len;
-          
-          // Posizione X basata sull'offset
-          const xPos = offset * (CARD_SIZE + CARD_GAP);
-          
-          // Effetto ellittico: leggera curva verso il basso ai lati
-          const distanceFromCenter = Math.abs(offset);
-          const yOffset = distanceFromCenter * distanceFromCenter * 3; // Curva parabolica leggera
-          const zOffset = -distanceFromCenter * 15; // Leggera profondità
-          
-          // Scala: grande al centro, piccola ai lati
-          const scale = Math.max(0.6, 1.3 - distanceFromCenter * 0.35);
-          const opacity = Math.max(0.3, 1 - distanceFromCenter * 0.35);
-          
-          const isCenter = distanceFromCenter < 0.5;
-          
-          // Shadow
-          const shadow = isCenter
-            ? isDark 
-              ? '0 8px 32px rgba(255,255,255,0.12), 0 0 0 1px rgba(255,255,255,0.15)'
-              : '0 12px 40px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.08)'
-            : isDark
-              ? '0 4px 12px rgba(255,255,255,0.05)'
-              : '0 4px 12px rgba(0,0,0,0.12)';
-          
-          const size = CARD_SIZE * scale;
-          const iconSize = 38 * scale;
-          const fontSize = 1.5 * scale;
-          
-          // Nascondi card troppo lontane
-          if (distanceFromCenter > 3) return null;
-          
-          return (
-            <motion.div
-              key={category.id}
-              className="absolute flex flex-col items-center"
-              style={{
-                x: xPos,
-                y: yOffset,
-                scale: scale,
-                opacity: opacity,
-                zIndex: 100 - Math.round(distanceFromCenter * 10),
-              }}
-            >
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isCenter) {
-                    navigate(`/category/${category.id}`);
-                  } else {
-                    goToIndex(i);
-                  }
+    <>
+      <div 
+        ref={containerRef}
+        className="relative overflow-hidden pb-4 pt-6 select-none cursor-grab active:cursor-grabbing"
+        style={{ minHeight: '200px' }}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseLeave}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {/* Container delle card - tutte allineate orizzontalmente */}
+        <div className="relative h-36 flex items-center justify-center">
+          {categories.map((category, i) => {
+            const count = reminders.filter(r => r.categoryId === category.id && !r.isCompleted).length;
+            const borderColor = categoryBorderColors[category.color] || categoryBorderColors.default;
+            const iconBg = categoryIconBg[category.color] || categoryIconBg.default;
+            const badgeColor = categoryBadgeColors[category.color] || categoryBadgeColors.default;
+            
+            // Calcola distanza dall'indice centrale
+            let offset = i - displayIndex;
+            while (offset > len / 2) offset -= len;
+            while (offset < -len / 2) offset += len;
+            
+            // Posizione X uniforme
+            const xPos = offset * (CARD_SIZE + CARD_GAP);
+            
+            // Distanza dal centro (sempre positiva)
+            const distanceFromCenter = Math.abs(offset);
+            
+            // Scala lineare: 1.3 al centro → 0.7 ai lati
+            const scale = Math.max(0.7, 1.3 - distanceFromCenter * 0.3);
+            const opacity = Math.max(0.4, 1 - distanceFromCenter * 0.3);
+            
+            const isCenter = distanceFromCenter < 0.5;
+            
+            const shadow = isCenter
+              ? isDark 
+                ? '0 8px 32px rgba(255,255,255,0.12), 0 0 0 1px rgba(255,255,255,0.15)'
+                : '0 12px 40px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.08)'
+              : isDark
+                ? '0 4px 12px rgba(255,255,255,0.05)'
+                : '0 4px 12px rgba(0,0,0,0.12)';
+            
+            const size = CARD_SIZE * scale;
+            const iconSize = 38 * scale;
+            const fontSize = 1.5 * scale;
+            
+            // Nascondi card troppo lontane
+            if (distanceFromCenter > 3) return null;
+            
+            return (
+              <motion.div
+                key={category.id}
+                className="absolute flex flex-col items-center"
+                style={{
+                  x: xPos,
+                  scale: scale,
+                  opacity: opacity,
+                  zIndex: 100 - Math.round(distanceFromCenter * 10),
                 }}
-                className="flex flex-col items-center transition-transform active:scale-95"
               >
-                <div 
-                  className={`rounded-2xl bg-card border-2 ${borderColor} flex flex-col items-center justify-center relative`}
-                  style={{ 
-                    width: `${size}px`, 
-                    height: `${size}px`,
-                    boxShadow: shadow,
-                    transform: `translateZ(${zOffset}px)`,
-                  }}
-                >
-                  {/* Icon background */}
-                  <div 
-                    className={`rounded-xl ${iconBg} flex items-center justify-center`}
-                    style={{
-                      width: `${iconSize}px`,
-                      height: `${iconSize}px`,
-                    }}
-                  >
-                    <span style={{ fontSize: `${fontSize}rem` }}>
-                      {category.icon}
-                    </span>
-                  </div>
+                <div className="relative">
+                  {/* Menu dropdown - solo per card centrale */}
+                  {isCenter && (
+                    <div 
+                      className="absolute -top-2 -right-2 z-20"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="p-1.5 rounded-full bg-card/80 backdrop-blur-sm shadow-md">
+                            <MoreVertical className="w-3.5 h-3.5 text-muted-foreground" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="glass-strong border-border/50">
+                          <DropdownMenuItem 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingCategory(category);
+                            }} 
+                            className="gap-2"
+                          >
+                            <Edit className="w-4 h-4" /> Modifica
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={(e) => handleDelete(category.id, e)} 
+                            className="gap-2 text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" /> Elimina
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
                   
-                  {/* Counter badge */}
-                  {count > 0 && (
-                    <span 
-                      className={`absolute -top-1 -right-1 rounded-full ${badgeColor} text-xs font-bold flex items-center justify-center shadow-lg`}
-                      style={{
-                        width: '18px',
-                        height: '18px',
-                        fontSize: '0.6rem',
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isCenter) {
+                        navigate(`/category/${category.id}`);
+                      } else {
+                        goToIndex(i);
+                      }
+                    }}
+                    className="flex flex-col items-center transition-transform active:scale-95"
+                  >
+                    <div 
+                      className={`rounded-2xl bg-card border-2 ${borderColor} flex flex-col items-center justify-center relative`}
+                      style={{ 
+                        width: `${size}px`, 
+                        height: `${size}px`,
+                        boxShadow: shadow,
                       }}
                     >
-                      {count}
-                    </span>
-                  )}
+                      <div 
+                        className={`rounded-xl ${iconBg} flex items-center justify-center`}
+                        style={{
+                          width: `${iconSize}px`,
+                          height: `${iconSize}px`,
+                        }}
+                      >
+                        <span style={{ fontSize: `${fontSize}rem` }}>
+                          {category.icon}
+                        </span>
+                      </div>
+                      
+                      {count > 0 && (
+                        <span 
+                          className={`absolute -top-1 -right-1 rounded-full ${badgeColor} text-xs font-bold flex items-center justify-center shadow-lg`}
+                          style={{
+                            width: '18px',
+                            height: '18px',
+                            fontSize: '0.6rem',
+                          }}
+                        >
+                          {count}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <p 
+                      className="mt-2 text-center font-semibold truncate"
+                      style={{ 
+                        opacity: isCenter ? 1 : 0.5,
+                        fontSize: `${Math.max(0.65, 0.7 * scale)}rem`,
+                        width: `${Math.max(70, size + 10)}px`,
+                      }}
+                    >
+                      {category.name}
+                    </p>
+                  </button>
                 </div>
-                
-                <p 
-                  className="mt-2 text-center font-semibold truncate"
-                  style={{ 
-                    opacity: isCenter ? 1 : 0.5,
-                    fontSize: `${Math.max(0.65, 0.7 * scale)}rem`,
-                    width: `${Math.max(70, size + 10)}px`,
-                  }}
-                >
-                  {category.name}
-                </p>
-              </button>
-            </motion.div>
-          );
-        })}
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {/* Indicatori */}
+        <div className="flex justify-center gap-1.5 mt-8">
+          {categories.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => goToIndex(i)}
+              className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                i === currentCenterIndex 
+                  ? 'bg-primary w-6' 
+                  : 'bg-muted-foreground/30'
+              }`}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* Indicatori sotto */}
-      <div className="flex justify-center gap-1.5 mt-8">
-        {categories.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => goToIndex(i)}
-            className={`w-2 h-2 rounded-full transition-all duration-200 ${
-              i === currentCenterIndex 
-                ? 'bg-primary w-6' 
-                : 'bg-muted-foreground/30'
-            }`}
-          />
-        ))}
-      </div>
-    </div>
+      {/* Dialog modifica categoria */}
+      {editingCategory && (
+        <EditCategoryDialog 
+          category={editingCategory} 
+          open={!!editingCategory} 
+          onOpenChange={(open) => !open && setEditingCategory(null)} 
+        />
+      )}
+    </>
   );
 }
