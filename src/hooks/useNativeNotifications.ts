@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { LocalNotifications, LocalNotificationSchema } from '@capacitor/local-notifications';
+import { LocalNotifications, LocalNotificationSchema, Channel } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
 import { RingtoneType, getAndroidSoundName, playRingtone, vibrateDevice } from './useNotificationSettings';
 
@@ -22,6 +22,17 @@ function getNotificationSettings() {
   }
   return { vibrationEnabled: true, ringtone: 'chime', alarmMode: true };
 }
+
+// Channel IDs for each ringtone
+const CHANNEL_IDS = {
+  default: 'promemoria-default',
+  chime: 'promemoria-chime',
+  beep: 'promemoria-beep',
+  gentle: 'promemoria-gentle',
+  urgent: 'promemoria-urgent',
+  alert: 'promemoria-alert',
+  silent: 'promemoria-silent',
+} as const;
 
 export function useNativeNotifications() {
   const [hasPermission, setHasPermission] = useState(false);
@@ -118,11 +129,9 @@ export function useNativeNotifications() {
     try {
       const notifications: LocalNotificationSchema[] = [];
       
-      // Get the sound file name for Android
-      const soundName = getAndroidSoundName(settings.ringtone as RingtoneType);
-      
-      // Determine vibration pattern - very strong for Samsung
-      const vibrationPattern = settings.vibrationEnabled ? [500, 200, 500, 200, 800] : undefined;
+      // Get the channel ID based on ringtone setting
+      const ringtone = settings.ringtone as RingtoneType;
+      const channelId = CHANNEL_IDS[ringtone] || CHANNEL_IDS.chime;
       
       // ALARM MODE: Schedule 3-4 notifications at 1 minute intervals
       const intervals = settings.alarmMode 
@@ -141,15 +150,10 @@ export function useNativeNotifications() {
             at: scheduledTime,
             allowWhileIdle: true, // Important for Doze mode on Samsung
           },
-          // Use custom sound from res/raw OR default
-          sound: settings.ringtone === 'silent' 
-            ? undefined 
-            : (soundName ? `${soundName}.mp3` : 'default'),
-          smallIcon: 'ic_notification',
+          smallIcon: 'ic_stat_notification',
           largeIcon: 'ic_launcher',
-          channelId: settings.vibrationEnabled ? 'promemoria-alarm' : 'promemoria-silent',
-          // Strong vibration pattern
-          ...(vibrationPattern && { vibration: vibrationPattern }),
+          // Use the correct channel for the selected ringtone
+          channelId: channelId,
           // Extra data for handling
           extra: {
             reminderId: options.id,
@@ -171,8 +175,7 @@ export function useNativeNotifications() {
         baseId,
         title: options.title,
         at: options.scheduledAt.toLocaleString(),
-        sound: soundName || 'default',
-        vibration: settings.vibrationEnabled,
+        channelId,
         alarmMode: settings.alarmMode,
       });
 
@@ -243,35 +246,97 @@ export function useNativeNotifications() {
 
   const setupNotificationChannels = async () => {
     try {
-      // High priority alarm channel with vibration and sound
-      await LocalNotifications.createChannel({
-        id: 'promemoria-alarm',
-        name: 'Promemoria',
-        description: 'Notifiche promemoria con suono e vibrazione',
-        importance: 5, // IMPORTANCE_HIGH
-        visibility: 1, // PUBLIC
-        sound: 'chime.mp3', // Default to our chime
-        vibration: true,
-        lights: true,
-        lightColor: '#667eea',
-      });
+      // Delete old channels if they exist
+      try {
+        await LocalNotifications.deleteChannel({ id: 'promemoria-alarm' });
+      } catch (e) { /* ignore */ }
 
-      // Silent channel (no sound, no vibration)
-      await LocalNotifications.createChannel({
-        id: 'promemoria-silent',
-        name: 'Promemoria (silenzioso)',
-        description: 'Notifiche promemoria silenziose',
-        importance: 4, // IMPORTANCE_DEFAULT
-        visibility: 1,
-        sound: undefined,
-        vibration: false,
-        lights: true,
-        lightColor: '#667eea',
-      });
+      // Create a channel for each ringtone type - Android requires separate channels for different sounds
+      const channels: Channel[] = [
+        {
+          id: CHANNEL_IDS.default,
+          name: 'Promemoria - Standard',
+          description: 'Notifiche con suono standard Android',
+          importance: 5,
+          visibility: 1,
+          vibration: true,
+          lights: true,
+          lightColor: '#667eea',
+        },
+        {
+          id: CHANNEL_IDS.chime,
+          name: 'Promemoria - Carillon',
+          description: 'Notifiche con suono carillon',
+          importance: 5,
+          visibility: 1,
+          sound: 'chime.mp3',
+          vibration: true,
+          lights: true,
+          lightColor: '#667eea',
+        },
+        {
+          id: CHANNEL_IDS.beep,
+          name: 'Promemoria - Beep',
+          description: 'Notifiche con suono beep',
+          importance: 5,
+          visibility: 1,
+          sound: 'beep.mp3',
+          vibration: true,
+          lights: true,
+          lightColor: '#667eea',
+        },
+        {
+          id: CHANNEL_IDS.gentle,
+          name: 'Promemoria - Delicato',
+          description: 'Notifiche con suono delicato',
+          importance: 5,
+          visibility: 1,
+          sound: 'gentle.mp3',
+          vibration: true,
+          lights: true,
+          lightColor: '#667eea',
+        },
+        {
+          id: CHANNEL_IDS.urgent,
+          name: 'Promemoria - Urgente',
+          description: 'Notifiche con suono urgente',
+          importance: 5,
+          visibility: 1,
+          sound: 'urgent.mp3',
+          vibration: true,
+          lights: true,
+          lightColor: '#667eea',
+        },
+        {
+          id: CHANNEL_IDS.alert,
+          name: 'Promemoria - Allarme',
+          description: 'Notifiche con suono allarme',
+          importance: 5,
+          visibility: 1,
+          sound: 'alert.mp3',
+          vibration: true,
+          lights: true,
+          lightColor: '#667eea',
+        },
+        {
+          id: CHANNEL_IDS.silent,
+          name: 'Promemoria - Silenzioso',
+          description: 'Notifiche silenziose',
+          importance: 4,
+          visibility: 1,
+          vibration: false,
+          lights: true,
+          lightColor: '#667eea',
+        },
+      ];
 
-      console.log('📢 Canali notifiche Samsung creati');
+      for (const channel of channels) {
+        await LocalNotifications.createChannel(channel);
+      }
+
+      console.log('📢 Canali notifiche Android creati per ogni suoneria');
     } catch (error) {
-      console.log('Canale già esistente o errore:', error);
+      console.log('Errore creazione canali:', error);
     }
   };
 
