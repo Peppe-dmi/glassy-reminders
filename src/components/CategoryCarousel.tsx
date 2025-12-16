@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Category } from '@/types/reminder';
 
 interface CategoryCarouselProps {
@@ -40,8 +41,18 @@ const categoryBadgeColors: Record<string, string> = {
 
 export function CategoryCarousel({ categories, reminders }: CategoryCarouselProps) {
   const navigate = useNavigate();
+  const { theme } = useTheme();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [cardStates, setCardStates] = useState<{ scale: number; opacity: number }[]>([]);
+  
+  // Ombre diverse per tema chiaro/scuro
+  const isDark = theme === 'dark';
+  const shadowLarge = isDark 
+    ? '0 8px 32px rgba(255,255,255,0.1), 0 0 0 1px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.1)'
+    : '0 16px 48px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.8)';
+  const shadowSmall = (scale: number) => isDark 
+    ? `0 ${4 * scale}px ${12 * scale}px rgba(255,255,255,0.05)`
+    : `0 ${4 * scale}px ${12 * scale}px rgba(0,0,0,0.15)`;
   
   // Crea array infinito: duplica le card per l'effetto loop
   const infiniteCategories = categories.length > 0 
@@ -194,9 +205,7 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
               style={{ 
                 width: `${size}px`, 
                 height: `${size}px`,
-                boxShadow: isLarge 
-                  ? '0 8px 32px rgba(255,255,255,0.1), 0 0 0 1px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.1)' 
-                  : `0 ${4 * scale}px ${12 * scale}px rgba(255,255,255,0.05)`,
+                boxShadow: isLarge ? shadowLarge : shadowSmall(scale),
                 transition: 'width 0.15s ease-out, height 0.15s ease-out, box-shadow 0.15s ease-out',
               }}
             >
