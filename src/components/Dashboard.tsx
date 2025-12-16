@@ -188,20 +188,30 @@ export function Dashboard() {
             </button>
           </div>
 
-          <div className="flex gap-3 overflow-x-auto pb-3 scrollbar-hide -mx-5 px-5">
+          <div className="flex gap-4 overflow-x-auto pb-6 pt-2 scrollbar-hide -mx-5 px-5 items-end">
             {categories.map((category, i) => {
               const count = reminders.filter(r => r.categoryId === category.id && !r.isCompleted).length;
               const borderColor = categoryBorderColors[category.color] || categoryBorderColors.default;
               const iconBg = categoryIconBg[category.color] || categoryIconBg.default;
               const badgeColor = categoryBadgeColors[category.color] || categoryBadgeColors.default;
               
+              // Rotazione alternata: -4°, +3°, -4°, +3°...
+              const rotation = i % 2 === 0 ? -4 : 3;
+              // Offset verticale alternato per effetto dinamico
+              const yOffset = i % 2 === 0 ? 0 : 8;
+              
               return (
                 <motion.button
                   key={category.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 + i * 0.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  initial={{ opacity: 0, y: 20, rotate: 0 }}
+                  animate={{ opacity: 1, y: yOffset, rotate: rotation }}
+                  transition={{ 
+                    delay: 0.1 + i * 0.06,
+                    type: 'spring',
+                    stiffness: 200,
+                    damping: 15
+                  }}
+                  whileTap={{ scale: 0.92, rotate: 0 }}
                   onClick={() => navigate(`/category/${category.id}`)}
                   className="flex-shrink-0"
                 >
@@ -216,7 +226,7 @@ export function Dashboard() {
                     {/* Counter badge */}
                     {count > 0 && (
                       <span 
-                        className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full ${badgeColor} text-xs font-bold flex items-center justify-center shadow-md`}
+                        className={`absolute -top-2 -right-2 w-5 h-5 rounded-full ${badgeColor} text-xs font-bold flex items-center justify-center shadow-md`}
                       >
                         {count}
                       </span>
@@ -227,12 +237,12 @@ export function Dashboard() {
               );
             })}
 
-            {/* Add Category Button */}
+            {/* Add Category Button - leggermente ruotato */}
             <motion.button
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 + categories.length * 0.05 }}
-              whileTap={{ scale: 0.95 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: categories.length % 2 === 0 ? 0 : 8, rotate: categories.length % 2 === 0 ? -4 : 3 }}
+              transition={{ delay: 0.1 + categories.length * 0.06 }}
+              whileTap={{ scale: 0.92, rotate: 0 }}
               onClick={() => setShowAddCategory(true)}
               className="flex-shrink-0"
             >
