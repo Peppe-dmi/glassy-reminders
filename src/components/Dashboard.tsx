@@ -269,22 +269,6 @@ export function Dashboard() {
           </AnimatePresence>
         </section>
 
-        {/* Floating Action Button */}
-        <motion.button
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => {
-            if (categories.length > 0) {
-              navigate(`/category/${categories[0].id}`);
-            } else {
-              setShowAddCategory(true);
-            }
-          }}
-          className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-primary flex items-center justify-center z-50 safe-area-bottom shadow-lg"
-        >
-          <Plus className="w-6 h-6 text-white" />
-        </motion.button>
       </div>
 
       {/* Dialogs */}
