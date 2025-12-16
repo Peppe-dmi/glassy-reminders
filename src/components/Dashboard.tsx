@@ -12,12 +12,21 @@ import { format, isToday, isTomorrow, isPast } from 'date-fns';
 import { it } from 'date-fns/locale';
 
 const categoryColorMap: Record<string, string> = {
-  work: 'from-amber-500 to-orange-600',
-  personal: 'from-sky-400 to-blue-600',
-  friends: 'from-pink-500 to-rose-600',
-  health: 'from-emerald-400 to-green-600',
-  finance: 'from-violet-500 to-purple-600',
-  default: 'from-primary to-accent',
+  work: 'from-amber-500 via-orange-500 to-orange-600',
+  personal: 'from-sky-400 via-blue-500 to-blue-600',
+  friends: 'from-pink-500 via-rose-500 to-rose-600',
+  health: 'from-emerald-400 via-green-500 to-green-600',
+  finance: 'from-violet-500 via-purple-500 to-purple-600',
+  default: 'from-primary via-purple-500 to-accent',
+};
+
+const categoryGlowMap: Record<string, string> = {
+  work: 'shadow-amber-500/40',
+  personal: 'shadow-sky-500/40',
+  friends: 'shadow-pink-500/40',
+  health: 'shadow-emerald-500/40',
+  finance: 'shadow-violet-500/40',
+  default: 'shadow-primary/40',
 };
 
 export function Dashboard() {
@@ -97,7 +106,7 @@ export function Dashboard() {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={requestPermission}
-                  className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg"
+                  className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30"
                 >
                   <Bell className="w-5 h-5 text-white" />
                 </motion.button>
@@ -105,45 +114,57 @@ export function Dashboard() {
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setShowSettings(true)}
-                className="w-10 h-10 rounded-xl glass flex items-center justify-center"
+                className="w-10 h-10 rounded-xl glass flex items-center justify-center card-3d"
               >
                 <Settings className="w-5 h-5" />
               </motion.button>
             </div>
           </div>
 
-          {/* Quick Stats */}
+          {/* Quick Stats - 3D Cards */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             className="grid grid-cols-3 gap-3"
           >
-            <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-4 text-center shadow-lg">
-              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-white/20 flex items-center justify-center">
+            <motion.div 
+              whileHover={{ scale: 1.05, y: -4 }}
+              whileTap={{ scale: 0.95 }}
+              className="stat-card-3d bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-4 text-center"
+            >
+              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
                 <Clock className="w-5 h-5 text-white" />
               </div>
-              <p className="text-2xl font-bold text-white">{stats.pendingToday}</p>
-              <p className="text-xs text-white/80">Oggi</p>
-            </div>
-            <div className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl p-4 text-center shadow-lg">
-              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-white/20 flex items-center justify-center">
+              <p className="text-2xl font-bold text-white drop-shadow-sm">{stats.pendingToday}</p>
+              <p className="text-xs text-white/80 font-medium">Oggi</p>
+            </motion.div>
+            <motion.div 
+              whileHover={{ scale: 1.05, y: -4 }}
+              whileTap={{ scale: 0.95 }}
+              className="stat-card-3d bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl p-4 text-center"
+            >
+              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
                 <TrendingUp className="w-5 h-5 text-white" />
               </div>
-              <p className="text-2xl font-bold text-white">{stats.completedThisWeek}</p>
-              <p className="text-xs text-white/80">Completati</p>
-            </div>
-            <div className="bg-gradient-to-br from-rose-500 to-red-600 rounded-2xl p-4 text-center shadow-lg">
-              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-white/20 flex items-center justify-center">
+              <p className="text-2xl font-bold text-white drop-shadow-sm">{stats.completedThisWeek}</p>
+              <p className="text-xs text-white/80 font-medium">Completati</p>
+            </motion.div>
+            <motion.div 
+              whileHover={{ scale: 1.05, y: -4 }}
+              whileTap={{ scale: 0.95 }}
+              className="stat-card-3d bg-gradient-to-br from-rose-500 to-red-600 rounded-2xl p-4 text-center"
+            >
+              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
                 <Zap className="w-5 h-5 text-white" />
               </div>
-              <p className="text-2xl font-bold text-white">{stats.overdueCount}</p>
-              <p className="text-xs text-white/80">Scaduti</p>
-            </div>
+              <p className="text-2xl font-bold text-white drop-shadow-sm">{stats.overdueCount}</p>
+              <p className="text-xs text-white/80 font-medium">Scaduti</p>
+            </motion.div>
           </motion.div>
         </header>
 
-        {/* Categories Scroll */}
+        {/* Categories Scroll - Premium 3D */}
         <motion.section
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -160,63 +181,97 @@ export function Dashboard() {
             </button>
           </div>
 
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-5 px-5">
+          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-5 px-5" style={{ perspective: '1000px' }}>
             {categories.map((category, i) => {
               const count = reminders.filter(r => r.categoryId === category.id && !r.isCompleted).length;
               const gradient = categoryColorMap[category.color] || categoryColorMap.default;
+              const glow = categoryGlowMap[category.color] || categoryGlowMap.default;
               
               return (
                 <motion.button
                   key={category.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.1 + i * 0.05 }}
+                  initial={{ opacity: 0, scale: 0.8, rotateY: -30 }}
+                  animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+                  transition={{ 
+                    delay: 0.15 + i * 0.08,
+                    type: 'spring',
+                    stiffness: 200,
+                    damping: 20
+                  }}
+                  whileHover={{ 
+                    scale: 1.08, 
+                    y: -8,
+                    rotateY: 5,
+                    rotateX: 5,
+                  }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => navigate(`/category/${category.id}`)}
                   className="flex-shrink-0 group"
+                  style={{ transformStyle: 'preserve-3d' }}
                 >
-                  <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${gradient} flex flex-col items-center justify-center shadow-lg relative overflow-hidden`}>
-                    <div className="absolute inset-0 bg-black/0 group-active:bg-black/10 transition-colors" />
-                    <span className="text-2xl mb-1">{category.icon}</span>
+                  <div 
+                    className={`category-premium w-24 h-24 bg-gradient-to-br ${gradient} flex flex-col items-center justify-center shadow-xl ${glow}`}
+                  >
+                    {/* Glass overlay */}
+                    <div className="absolute inset-0 rounded-[1.25rem] bg-gradient-to-b from-white/30 via-transparent to-black/10 pointer-events-none" />
+                    
+                    {/* Icon with 3D effect */}
+                    <motion.span 
+                      className="text-3xl mb-1 drop-shadow-lg relative z-10"
+                      style={{ textShadow: '0 4px 8px rgba(0,0,0,0.3)' }}
+                    >
+                      {category.icon}
+                    </motion.span>
+                    
+                    {/* Badge */}
                     {count > 0 && (
-                      <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-white/90 text-xs font-bold flex items-center justify-center text-gray-800">
+                      <motion.span 
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-white text-xs font-bold flex items-center justify-center text-gray-800 shadow-lg border-2 border-white/50 z-20"
+                        style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
+                      >
                         {count}
-                      </span>
+                      </motion.span>
                     )}
+
+                    {/* Reflection */}
+                    <div className="category-premium-reflection" />
                   </div>
-                  <p className="text-xs mt-2 text-center font-medium truncate w-20">{category.name}</p>
+                  <p className="text-xs mt-2.5 text-center font-semibold truncate w-24">{category.name}</p>
                 </motion.button>
               );
             })}
 
-            {/* Add Category Button */}
+            {/* Add Category Button - 3D */}
             <motion.button
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.1 + categories.length * 0.05 }}
+              transition={{ delay: 0.15 + categories.length * 0.08 }}
+              whileHover={{ scale: 1.05, y: -4 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowAddCategory(true)}
               className="flex-shrink-0"
             >
-              <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-border flex flex-col items-center justify-center">
-                <Plus className="w-6 h-6 text-muted-foreground" />
+              <div className="w-24 h-24 rounded-[1.25rem] border-2 border-dashed border-border flex flex-col items-center justify-center bg-card/50 backdrop-blur-sm shadow-lg transition-all hover:border-primary/50 hover:bg-card/80">
+                <Plus className="w-7 h-7 text-muted-foreground" />
               </div>
-              <p className="text-xs mt-2 text-center text-muted-foreground">Aggiungi</p>
+              <p className="text-xs mt-2.5 text-center text-muted-foreground font-medium">Aggiungi</p>
             </motion.button>
           </div>
         </motion.section>
 
-        {/* Tab Switcher */}
+        {/* Tab Switcher - 3D */}
         <div className="px-5 mb-4">
-          <div className="bg-card border border-border rounded-2xl p-1.5 flex shadow-sm">
+          <div className="bg-card/80 backdrop-blur-xl border border-border rounded-2xl p-1.5 flex shadow-lg card-3d">
             {(['today', 'upcoming', 'all'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   activeTab === tab 
-                    ? 'bg-primary text-primary-foreground shadow-md' 
-                    : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/30' 
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
               >
                 {tab === 'today' ? 'Oggi' : tab === 'upcoming' ? 'Prossimi' : 'Tutti'}
@@ -225,7 +280,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Reminders List */}
+        {/* Reminders List - 3D Cards */}
         <section className="flex-1 px-5 pb-24">
           <AnimatePresence mode="wait">
             <motion.div
@@ -239,7 +294,7 @@ export function Dashboard() {
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="bg-card border border-border rounded-2xl p-8 text-center shadow-sm"
+                  className="card-3d bg-card border border-border rounded-2xl p-8 text-center"
                 >
                   <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
                     <Sparkles className="w-8 h-8 text-primary" />
@@ -265,15 +320,20 @@ export function Dashboard() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.05 }}
+                      whileHover={{ scale: 1.01, y: -2 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => category && navigate(`/category/${category.id}`)}
-                      className={`bg-card border border-border rounded-2xl p-4 flex items-center gap-4 cursor-pointer group shadow-sm hover:shadow-md transition-shadow ${
+                      className={`reminder-card-3d bg-card border border-border rounded-2xl p-4 flex items-center gap-4 cursor-pointer group ${
                         isOverdue ? 'ring-2 ring-destructive/50' : ''
                       }`}
                     >
-                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-md flex-shrink-0`}>
-                        <span className="text-xl">{category?.icon || '📌'}</span>
-                      </div>
+                      <motion.div 
+                        whileHover={{ scale: 1.1, rotate: 5 }}
+                        className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg flex-shrink-0`}
+                        style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}
+                      >
+                        <span className="text-xl drop-shadow-sm">{category?.icon || '📌'}</span>
+                      </motion.div>
                       
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold truncate">{reminder.title}</h3>
@@ -290,7 +350,7 @@ export function Dashboard() {
                         </div>
                       </div>
 
-                      <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
+                      <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground group-hover:translate-x-1 transition-all flex-shrink-0" />
                     </motion.div>
                   );
                 })
@@ -299,10 +359,11 @@ export function Dashboard() {
           </AnimatePresence>
         </section>
 
-        {/* Floating Action Button */}
+        {/* Floating Action Button - Premium 3D */}
         <motion.button
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
+          whileHover={{ scale: 1.1, rotate: 90 }}
           whileTap={{ scale: 0.9 }}
           onClick={() => {
             if (categories.length > 0) {
@@ -311,9 +372,12 @@ export function Dashboard() {
               setShowAddCategory(true);
             }
           }}
-          className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-br from-primary to-accent shadow-lg shadow-primary/30 flex items-center justify-center z-50 safe-area-bottom"
+          className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center z-50 safe-area-bottom"
+          style={{
+            boxShadow: '0 4px 16px rgba(139, 92, 246, 0.4), 0 8px 32px rgba(139, 92, 246, 0.3), inset 0 1px 0 rgba(255,255,255,0.3)'
+          }}
         >
-          <Plus className="w-6 h-6 text-white" />
+          <Plus className="w-6 h-6 text-white drop-shadow-sm" />
         </motion.button>
       </div>
 
