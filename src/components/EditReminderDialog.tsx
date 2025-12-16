@@ -382,13 +382,15 @@ export function EditReminderDialog({ reminder, open, onOpenChange }: EditReminde
                 )}
               </div>
 
-              <Button 
-                type="button"
-                onClick={handleSubmit} 
-                className="w-full glow py-6 text-lg"
-              >
-                ✓ Salva Modifiche
-              </Button>
+              <div className="pt-4 pb-8">
+                <Button 
+                  type="button"
+                  onClick={handleSubmit} 
+                  className="w-full h-14 text-base font-semibold rounded-2xl bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25 transition-all active:scale-[0.98]"
+                >
+                  Salva Modifiche
+                </Button>
+              </div>
             </div>
           </motion.div>
         </motion.div>
