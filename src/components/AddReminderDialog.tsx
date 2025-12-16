@@ -1,6 +1,13 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Bell, BellOff, Calendar as CalendarIcon, Repeat } from 'lucide-react';
+
+// Feedback tattile leggero
+const hapticFeedback = () => {
+  if ('vibrate' in navigator) {
+    navigator.vibrate(8);
+  }
+};
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useReminders } from '@/contexts/ReminderContext';
@@ -235,7 +242,10 @@ export function AddReminderDialog({ categoryId, preselectedDate, open, onOpenCha
                         onScroll={(e) => {
                           const scrollTop = e.currentTarget.scrollTop;
                           const index = Math.round(scrollTop / 48);
-                          if (hours[index]) setSelectedHour(hours[index]);
+                          if (hours[index] && hours[index] !== selectedHour) {
+                            setSelectedHour(hours[index]);
+                            hapticFeedback();
+                          }
                         }}
                       >
                         <div className="h-12" /> {/* Spacer */}
@@ -269,7 +279,10 @@ export function AddReminderDialog({ categoryId, preselectedDate, open, onOpenCha
                         onScroll={(e) => {
                           const scrollTop = e.currentTarget.scrollTop;
                           const index = Math.round(scrollTop / 48);
-                          if (minutes[index]) setSelectedMinute(minutes[index]);
+                          if (minutes[index] && minutes[index] !== selectedMinute) {
+                            setSelectedMinute(minutes[index]);
+                            hapticFeedback();
+                          }
                         }}
                       >
                         <div className="h-12" /> {/* Spacer */}
