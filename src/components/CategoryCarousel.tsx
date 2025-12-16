@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useAnimation, useMotionValue, animate } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Category } from '@/types/reminder';
@@ -35,145 +35,110 @@ const categoryBadgeColors: Record<string, string> = {
   personal: 'bg-sky-500 text-white',
   friends: 'bg-pink-500 text-white',
   health: 'bg-emerald-500 text-white',
-  finance: 'bg-violet-500/60',
+  finance: 'bg-violet-500 text-white',
   default: 'bg-primary text-white',
 };
 
-// Dimensioni
-const CARD_SIZE = 70;
-const CARD_GAP = 16;
-const CARD_TOTAL = CARD_SIZE + CARD_GAP;
+const CARD_SIZE = 80;
 
 export function CategoryCarousel({ categories, reminders }: CategoryCarouselProps) {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(0);
   
-  // Inizia sempre con la card centrale (se >= 3 categorie, altrimenti la prima)
-  const getInitialIndex = () => {
-    if (categories.length >= 3) return 1; // Seconda card = centrale con una a sx e una a dx
-    return 0;
-  };
-  const [currentIndex, setCurrentIndex] = useState(getInitialIndex);
+  // Rotazione in gradi (continua, senza limiti)
+  const rotation = useMotionValue(0);
+  const [displayRotation, setDisplayRotation] = useState(0);
   
-  // Tracking per velocità swipe
+  // Tracking drag
   const isDragging = useRef(false);
   const startX = useRef(0);
-  const startTime = useRef(0);
+  const startRotation = useRef(0);
   const lastX = useRef(0);
+  const lastTime = useRef(0);
   const velocity = useRef(0);
   
-  // Ombre diverse per tema chiaro/scuro
   const isDark = theme === 'dark';
-  const shadowLarge = isDark 
-    ? '0 8px 32px rgba(255,255,255,0.1), 0 0 0 1px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.1)'
-    : '0 16px 48px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.8)';
-  const shadowSmall = isDark 
-    ? '0 4px 12px rgba(255,255,255,0.05)'
-    : '0 4px 12px rgba(0,0,0,0.15)';
+  
+  // Angolo per card (360° / numero categorie)
+  const anglePerCard = categories.length > 0 ? 360 / categories.length : 60;
+  
+  // Raggio del cilindro (più grande = card più distanti)
+  const radius = Math.max(120, categories.length * 25);
 
-  // Aggiorna l'index iniziale quando cambiano le categorie
+  // Aggiorna displayRotation quando rotation cambia
   useEffect(() => {
-    if (categories.length >= 3) {
-      setCurrentIndex(1);
-    } else {
-      setCurrentIndex(0);
-    }
-  }, [categories.length]);
+    const unsubscribe = rotation.on('change', (v) => {
+      setDisplayRotation(v);
+    });
+    return () => unsubscribe();
+  }, [rotation]);
 
-  // Calcola larghezza container
-  useEffect(() => {
-    const updateWidth = () => {
-      if (containerRef.current) {
-        setContainerWidth(containerRef.current.offsetWidth);
-      }
-    };
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
-  }, []);
-
-  // Naviga a un indice specifico con wrap-around
-  const goToIndex = useCallback((index: number) => {
-    const len = categories.length;
-    if (len === 0) return;
+  // Snap alla card più vicina
+  const snapToNearest = useCallback((currentRotation: number, initialVelocity: number = 0) => {
+    // Trova l'angolo più vicino multiplo di anglePerCard
+    const snappedRotation = Math.round(currentRotation / anglePerCard) * anglePerCard;
     
-    // Wrap around
-    let newIndex = index;
-    while (newIndex < 0) newIndex += len;
-    while (newIndex >= len) newIndex -= len;
-    
-    setCurrentIndex(newIndex);
-  }, [categories.length]);
+    animate(rotation, snappedRotation, {
+      type: 'spring',
+      stiffness: 100,
+      damping: 20,
+      velocity: initialVelocity,
+    });
+  }, [anglePerCard, rotation]);
 
-  // Touch/mouse handlers con tracking velocità
+  // Gestione drag
   const handleDragStart = (clientX: number) => {
     isDragging.current = true;
     startX.current = clientX;
+    startRotation.current = rotation.get();
     lastX.current = clientX;
-    startTime.current = Date.now();
+    lastTime.current = Date.now();
     velocity.current = 0;
   };
 
   const handleDragMove = (clientX: number) => {
     if (!isDragging.current) return;
     
-    // Calcola velocità istantanea
+    const diff = clientX - startX.current;
+    // Sensibilità: più px = più rotazione (negativo perché swipe sx = rotazione positiva)
+    const sensitivity = 0.5;
+    const newRotation = startRotation.current - diff * sensitivity;
+    rotation.set(newRotation);
+    
+    // Calcola velocità
     const now = Date.now();
-    const dt = now - startTime.current;
+    const dt = now - lastTime.current;
     if (dt > 0) {
-      velocity.current = (lastX.current - clientX) / dt * 1000; // px/s
+      velocity.current = ((lastX.current - clientX) * sensitivity) / dt * 1000;
     }
     lastX.current = clientX;
-    startTime.current = now;
+    lastTime.current = now;
   };
 
-  const handleDragEnd = (clientX: number) => {
+  const handleDragEnd = () => {
     if (!isDragging.current) return;
     isDragging.current = false;
     
-    const diff = startX.current - clientX;
-    const absVelocity = Math.abs(velocity.current);
-    
-    // Calcola quante card saltare in base a distanza + velocità
-    let cardsToMove = 0;
-    
-    // Base: distanza percorsa
-    const distanceCards = Math.round(Math.abs(diff) / CARD_TOTAL);
-    
-    // Bonus velocità: se swipe veloce, aggiungi card
-    const velocityBonus = Math.floor(absVelocity / 800); // 1 card extra ogni 800px/s
-    
-    cardsToMove = Math.max(1, distanceCards + velocityBonus);
-    
-    // Limita a max 5 card per swipe
-    cardsToMove = Math.min(cardsToMove, 5);
-    
-    // Soglia minima per muoversi
-    const threshold = 30;
-    
-    if (diff > threshold || velocity.current > 200) {
-      // Swipe sinistra -> avanti
-      goToIndex(currentIndex + cardsToMove);
-    } else if (diff < -threshold || velocity.current < -200) {
-      // Swipe destra -> indietro
-      goToIndex(currentIndex - cardsToMove);
-    }
+    // Snap con inerzia basata sulla velocità
+    snapToNearest(rotation.get(), velocity.current);
   };
 
   // Mouse events
-  const onMouseDown = (e: React.MouseEvent) => handleDragStart(e.clientX);
+  const onMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    handleDragStart(e.clientX);
+  };
   const onMouseMove = (e: React.MouseEvent) => handleDragMove(e.clientX);
-  const onMouseUp = (e: React.MouseEvent) => handleDragEnd(e.clientX);
-  const onMouseLeave = (e: React.MouseEvent) => {
-    if (isDragging.current) handleDragEnd(e.clientX);
+  const onMouseUp = () => handleDragEnd();
+  const onMouseLeave = () => {
+    if (isDragging.current) handleDragEnd();
   };
 
   // Touch events
   const onTouchStart = (e: React.TouchEvent) => handleDragStart(e.touches[0].clientX);
   const onTouchMove = (e: React.TouchEvent) => handleDragMove(e.touches[0].clientX);
-  const onTouchEnd = (e: React.TouchEvent) => handleDragEnd(e.changedTouches[0].clientX);
+  const onTouchEnd = () => handleDragEnd();
 
   if (categories.length === 0) {
     return (
@@ -183,16 +148,18 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     );
   }
 
-  // Calcola offset per centrare la card corrente
-  const centerOffset = containerWidth / 2 - CARD_SIZE / 2;
+  // Trova quale card è più vicina al fronte (rotazione 0)
+  const normalizedRotation = ((displayRotation % 360) + 360) % 360;
+  const frontIndex = Math.round(normalizedRotation / anglePerCard) % categories.length;
 
   return (
     <div 
       ref={containerRef}
-      className="relative overflow-hidden pb-8 pt-6 select-none"
+      className="relative overflow-hidden pb-4 pt-6 select-none cursor-grab active:cursor-grabbing"
       style={{ 
-        minHeight: '200px',
-        touchAction: 'pan-y',
+        minHeight: '220px',
+        perspective: '800px',
+        perspectiveOrigin: 'center center',
       }}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
@@ -202,16 +169,15 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      <motion.div
-        className="flex items-center"
-        style={{ gap: `${CARD_GAP}px` }}
-        animate={{
-          x: centerOffset - (currentIndex * CARD_TOTAL),
-        }}
-        transition={{
-          type: 'spring',
-          stiffness: 200,
-          damping: 25,
+      {/* Contenitore 3D rotante */}
+      <div
+        className="relative mx-auto"
+        style={{
+          width: `${CARD_SIZE}px`,
+          height: `${CARD_SIZE + 40}px`,
+          transformStyle: 'preserve-3d',
+          transform: `rotateY(${-displayRotation}deg)`,
+          transition: isDragging.current ? 'none' : undefined,
         }}
       >
         {categories.map((category, i) => {
@@ -220,108 +186,143 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
           const iconBg = categoryIconBg[category.color] || categoryIconBg.default;
           const badgeColor = categoryBadgeColors[category.color] || categoryBadgeColors.default;
           
-          // Distanza dal centro (in indici)
-          const distance = Math.abs(i - currentIndex);
-          const isCenter = distance === 0;
+          // Posizione angolare di questa card
+          const cardAngle = i * anglePerCard;
           
-          // Scala: 1.5 al centro, gradualmente più piccola
-          const scale = isCenter ? 1.5 : Math.max(0.55, 1 - distance * 0.35);
-          const opacity = isCenter ? 1 : Math.max(0.4, 1 - distance * 0.3);
+          // Calcola se questa card è quella frontale
+          const isFront = i === frontIndex;
+          
+          // Calcola quanto è "di fronte" questa card (0 = dietro, 1 = davanti)
+          const cardRotationInView = ((cardAngle - normalizedRotation + 180 + 360) % 360) - 180;
+          const frontness = Math.cos((cardRotationInView * Math.PI) / 180);
+          
+          // Scala e opacità basate su quanto è di fronte
+          const scale = 0.6 + frontness * 0.5; // 0.6 dietro -> 1.1 davanti
+          const opacity = 0.3 + frontness * 0.7; // 0.3 dietro -> 1.0 davanti
+          
+          // Shadow per profondità
+          const shadow = isFront
+            ? isDark 
+              ? '0 8px 32px rgba(255,255,255,0.15), 0 0 0 1px rgba(255,255,255,0.2)'
+              : '0 16px 48px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,0,0,0.1)'
+            : isDark
+              ? '0 4px 12px rgba(255,255,255,0.05)'
+              : '0 4px 12px rgba(0,0,0,0.1)';
           
           const size = CARD_SIZE * scale;
           const iconSize = 40 * scale;
-          const fontSize = 1.5 * scale;
+          const fontSize = 1.6 * scale;
           
           return (
-            <motion.button
+            <div
               key={category.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ 
+              className="absolute left-1/2 top-0 flex flex-col items-center"
+              style={{
+                transform: `
+                  translateX(-50%)
+                  rotateY(${cardAngle}deg)
+                  translateZ(${radius}px)
+                `,
+                transformStyle: 'preserve-3d',
                 opacity: opacity,
-                scale: 1,
-                y: 0,
+                zIndex: Math.round(frontness * 100),
               }}
-              transition={{ delay: i * 0.05, duration: 0.3 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (isCenter) {
-                  navigate(`/category/${category.id}`);
-                } else {
-                  goToIndex(i);
-                }
-              }}
-              className="flex-shrink-0 flex flex-col items-center"
-              style={{ width: `${CARD_SIZE}px` }}
             >
-              <motion.div 
-                className={`rounded-2xl bg-card border-2 ${borderColor} flex flex-col items-center justify-center relative`}
-                animate={{
-                  width: size,
-                  height: size,
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isFront) {
+                    navigate(`/category/${category.id}`);
+                  } else {
+                    // Ruota per portare questa card al fronte
+                    const targetRotation = i * anglePerCard;
+                    const currentNorm = rotation.get() % 360;
+                    let diff = targetRotation - (currentNorm % 360);
+                    if (diff > 180) diff -= 360;
+                    if (diff < -180) diff += 360;
+                    animate(rotation, rotation.get() + diff, {
+                      type: 'spring',
+                      stiffness: 100,
+                      damping: 20,
+                    });
+                  }
                 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 25 }}
-                style={{ 
-                  boxShadow: isCenter ? shadowLarge : shadowSmall,
-                }}
+                className="flex flex-col items-center transition-transform active:scale-95"
               >
-                {/* Icon background */}
-                <motion.div 
-                  className={`rounded-xl ${iconBg} flex items-center justify-center`}
-                  animate={{
-                    width: iconSize,
-                    height: iconSize,
+                <div 
+                  className={`rounded-2xl bg-card border-2 ${borderColor} flex flex-col items-center justify-center relative`}
+                  style={{ 
+                    width: `${size}px`, 
+                    height: `${size}px`,
+                    boxShadow: shadow,
+                    transition: 'box-shadow 0.2s',
+                    backfaceVisibility: 'hidden',
                   }}
-                  transition={{ type: 'spring', stiffness: 200, damping: 25 }}
                 >
-                  <motion.span 
-                    animate={{ fontSize: `${fontSize}rem` }}
-                    transition={{ type: 'spring', stiffness: 200, damping: 25 }}
-                  >
-                    {category.icon}
-                  </motion.span>
-                </motion.div>
-                
-                {/* Counter badge */}
-                {count > 0 && (
-                  <span 
-                    className={`absolute -top-1.5 -right-1.5 rounded-full ${badgeColor} text-xs font-bold flex items-center justify-center shadow-lg`}
+                  {/* Icon background */}
+                  <div 
+                    className={`rounded-xl ${iconBg} flex items-center justify-center`}
                     style={{
-                      width: '20px',
-                      height: '20px',
-                      fontSize: '0.65rem',
+                      width: `${iconSize}px`,
+                      height: `${iconSize}px`,
                     }}
                   >
-                    {count}
-                  </span>
-                )}
-              </motion.div>
-              
-              <motion.p 
-                className="mt-2 text-center font-semibold truncate"
-                animate={{ 
-                  opacity: isCenter ? 1 : 0.5,
-                }}
-                style={{ 
-                  fontSize: `${Math.max(0.7, 0.75 * scale)}rem`,
-                  width: `${Math.max(70, size)}px`,
-                }}
-              >
-                {category.name}
-              </motion.p>
-            </motion.button>
+                    <span style={{ fontSize: `${fontSize}rem` }}>
+                      {category.icon}
+                    </span>
+                  </div>
+                  
+                  {/* Counter badge */}
+                  {count > 0 && (
+                    <span 
+                      className={`absolute -top-1 -right-1 rounded-full ${badgeColor} text-xs font-bold flex items-center justify-center shadow-lg`}
+                      style={{
+                        width: '18px',
+                        height: '18px',
+                        fontSize: '0.6rem',
+                      }}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </div>
+                
+                <p 
+                  className="mt-2 text-center font-semibold truncate"
+                  style={{ 
+                    opacity: isFront ? 1 : 0.6,
+                    fontSize: `${Math.max(0.65, 0.7 * scale)}rem`,
+                    width: `${Math.max(70, size + 20)}px`,
+                    backfaceVisibility: 'hidden',
+                  }}
+                >
+                  {category.name}
+                </p>
+              </button>
+            </div>
           );
         })}
-      </motion.div>
+      </div>
 
       {/* Indicatori sotto */}
-      <div className="flex justify-center gap-1.5 mt-4">
+      <div className="flex justify-center gap-1.5 mt-6">
         {categories.map((_, i) => (
           <button
             key={i}
-            onClick={() => goToIndex(i)}
+            onClick={() => {
+              const targetRotation = i * anglePerCard;
+              const currentNorm = rotation.get() % 360;
+              let diff = targetRotation - (currentNorm % 360);
+              if (diff > 180) diff -= 360;
+              if (diff < -180) diff += 360;
+              animate(rotation, rotation.get() + diff, {
+                type: 'spring',
+                stiffness: 100,
+                damping: 20,
+              });
+            }}
             className={`w-2 h-2 rounded-full transition-all duration-200 ${
-              i === currentIndex 
+              i === frontIndex 
                 ? 'bg-primary w-6' 
                 : 'bg-muted-foreground/30'
             }`}
