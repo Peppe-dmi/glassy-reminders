@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -44,6 +44,9 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
   const { theme } = useTheme();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [cardStates, setCardStates] = useState<{ scale: number; opacity: number }[]>([]);
+  const isScrollingRef = useRef(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasInitializedRef = useRef(false);
   
   // Ombre diverse per tema chiaro/scuro
   const isDark = theme === 'dark';
@@ -54,10 +57,11 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     ? `0 ${4 * scale}px ${12 * scale}px rgba(255,255,255,0.05)`
     : `0 ${4 * scale}px ${12 * scale}px rgba(0,0,0,0.15)`;
   
-  // Crea array infinito: duplica le card per l'effetto loop
-  const infiniteCategories = categories.length > 0 
-    ? [...categories, ...categories, ...categories] // Triplica per scroll infinito
-    : [];
+  // Crea array infinito: duplica le card per l'effetto loop (5x per maggiore margine)
+  const infiniteCategories = useMemo(() => {
+    if (categories.length === 0) return [];
+    return [...categories, ...categories, ...categories, ...categories, ...categories];
+  }, [categories]);
   const realLength = categories.length;
 
   // Calcola scala e opacità per ogni card basandosi sulla distanza dal centro
@@ -91,62 +95,73 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     setCardStates(newStates);
   }, [infiniteCategories.length]);
 
-  // Gestisce il loop infinito
+  // Gestisce il loop infinito - chiamato solo quando lo scroll si ferma
   const handleInfiniteScroll = useCallback(() => {
-    if (!scrollRef.current || realLength === 0) return;
+    if (!scrollRef.current || realLength === 0 || isScrollingRef.current) return;
     
     const container = scrollRef.current;
     const scrollWidth = container.scrollWidth;
-    const clientWidth = container.clientWidth;
     const scrollLeft = container.scrollLeft;
-    const sectionWidth = scrollWidth / 3; // Diviso per 3 sezioni (triplicate)
+    const sectionWidth = scrollWidth / 5; // Diviso per 5 sezioni
     
-    // Se siamo nella prima sezione, salta alla seconda (centro)
-    if (scrollLeft < sectionWidth * 0.3) {
-      container.scrollLeft = scrollLeft + sectionWidth;
+    // Mantieni l'utente nelle sezioni centrali (2, 3)
+    // Se troppo a sinistra (sezione 0-1), salta avanti
+    if (scrollLeft < sectionWidth * 1) {
+      container.style.scrollBehavior = 'auto';
+      container.scrollLeft = scrollLeft + sectionWidth * 2;
+      container.style.scrollBehavior = '';
     }
-    // Se siamo nella terza sezione, salta alla seconda (centro)
-    else if (scrollLeft > sectionWidth * 1.7) {
-      container.scrollLeft = scrollLeft - sectionWidth;
+    // Se troppo a destra (sezione 4), salta indietro  
+    else if (scrollLeft > sectionWidth * 3.5) {
+      container.style.scrollBehavior = 'auto';
+      container.scrollLeft = scrollLeft - sectionWidth * 2;
+      container.style.scrollBehavior = '';
     }
   }, [realLength]);
 
   useEffect(() => {
-    calculateCardStates();
-    
     const container = scrollRef.current;
-    if (container) {
-      // Posiziona inizialmente al centro (seconda sezione)
-      if (realLength > 0) {
-        const sectionWidth = container.scrollWidth / 3;
-        container.scrollLeft = sectionWidth;
-      }
-      
-      // Usa requestAnimationFrame per scroll più fluido
-      let ticking = false;
-      const handleScroll = () => {
-        if (!ticking) {
-          requestAnimationFrame(() => {
-            calculateCardStates();
-            handleInfiniteScroll();
-            ticking = false;
-          });
-          ticking = true;
-        }
-      };
-      
-      container.addEventListener('scroll', handleScroll, { passive: true });
-      window.addEventListener('resize', calculateCardStates);
-      
-      // Initial calculation
-      setTimeout(calculateCardStates, 50);
+    if (!container) return;
+
+    // Posiziona inizialmente al centro (sezione centrale)
+    if (realLength > 0 && !hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      const sectionWidth = container.scrollWidth / 5;
+      container.style.scrollBehavior = 'auto';
+      container.scrollLeft = sectionWidth * 2; // Sezione centrale
+      container.style.scrollBehavior = '';
+      setTimeout(calculateCardStates, 20);
     }
     
-    return () => {
-      if (container) {
-        container.removeEventListener('scroll', calculateCardStates);
+    // Handler scroll con debounce per il loop infinito
+    const handleScroll = () => {
+      isScrollingRef.current = true;
+      
+      // Aggiorna le card immediatamente
+      requestAnimationFrame(calculateCardStates);
+      
+      // Debounce: fai il jump solo quando lo scroll si ferma
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
       }
+      scrollTimeoutRef.current = setTimeout(() => {
+        isScrollingRef.current = false;
+        handleInfiniteScroll();
+      }, 150); // 150ms dopo che lo scroll si ferma
+    };
+    
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', calculateCardStates);
+    
+    // Initial calculation
+    setTimeout(calculateCardStates, 50);
+    
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', calculateCardStates);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
     };
   }, [calculateCardStates, handleInfiniteScroll, realLength]);
 
@@ -165,10 +180,16 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
   return (
     <div 
       ref={scrollRef}
-      className="flex items-center justify-center overflow-x-auto pb-8 pt-6 scrollbar-hide px-4"
+      className="flex items-center overflow-x-auto pb-8 pt-6 scrollbar-hide"
       style={{ 
         minHeight: '180px',
-        gap: '6px', // Gap stretto per effetto rullino compatto
+        gap: '8px',
+        paddingLeft: '20px',
+        paddingRight: '20px',
+        // Disabilita bounce elastico nativo
+        overscrollBehavior: 'contain',
+        WebkitOverflowScrolling: 'auto', // Disabilita momentum scroll iOS
+        scrollSnapType: 'none',
       }}
     >
       {infiniteCategories.map((category, i) => {

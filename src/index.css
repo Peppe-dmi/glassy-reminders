@@ -309,10 +309,19 @@
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
+    overscroll-behavior: contain;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: auto;
   }
 
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Disabilita pull-to-refresh e bounce su tutta l'app */
+  html, body {
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
   }
 }
 
