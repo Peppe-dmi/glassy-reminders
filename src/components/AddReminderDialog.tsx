@@ -308,10 +308,10 @@ export function AddReminderDialog({ categoryId, preselectedDate, open, onOpenCha
                       key={p.value}
                       type="button"
                       onClick={() => setPriority(p.value as 'low' | 'medium' | 'high')}
-                      className={`p-3 rounded-xl text-sm transition-all ${
+                      className={`p-3 rounded-xl text-sm font-medium transition-all ${
                         priority === p.value
-                          ? 'glass-strong ring-2 ring-primary'
-                          : 'glass-subtle hover:bg-muted'
+                          ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-105'
+                          : 'glass-subtle hover:bg-muted text-muted-foreground'
                       }`}
                     >
                       {p.icon} {p.label}
@@ -332,10 +332,10 @@ export function AddReminderDialog({ categoryId, preselectedDate, open, onOpenCha
                       key={opt.value}
                       type="button"
                       onClick={() => setRecurrence(opt.value)}
-                      className={`p-2 rounded-xl text-sm transition-all ${
+                      className={`p-2 rounded-xl text-sm font-medium transition-all ${
                         recurrence === opt.value
-                          ? 'glass-strong ring-2 ring-primary'
-                          : 'glass-subtle hover:bg-muted'
+                          ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-105'
+                          : 'glass-subtle hover:bg-muted text-muted-foreground'
                       }`}
                     >
                       {opt.icon} {opt.label}
@@ -376,10 +376,10 @@ export function AddReminderDialog({ categoryId, preselectedDate, open, onOpenCha
                         key={option.value}
                         type="button"
                         onClick={() => setAlarmMinutesBefore(option.value)}
-                        className={`p-2 rounded-xl text-sm transition-all ${
+                        className={`p-2 rounded-xl text-sm font-medium transition-all ${
                           alarmMinutesBefore === option.value
-                            ? 'glass-strong ring-2 ring-primary'
-                            : 'glass-subtle hover:bg-muted'
+                            ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-105'
+                            : 'glass-subtle hover:bg-muted text-muted-foreground'
                         }`}
                       >
                         {option.label}

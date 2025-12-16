@@ -148,7 +148,7 @@ export function useNativeNotifications() {
           body: options.body,
           schedule: {
             at: scheduledTime,
-            allowWhileIdle: true, // Important for Doze mode on Samsung
+            allowWhileIdle: true, // Important for Doze mode on Android
           },
           smallIcon: 'ic_stat_notification',
           largeIcon: 'ic_launcher',
@@ -236,7 +236,7 @@ export function useNativeNotifications() {
     return !!result;
   }, [scheduleNotification]);
 
-  // Setup notification channels for Android (Samsung compatible)
+  // Setup notification channels for Android
   useEffect(() => {
     if (isNative) {
       setupNotificationChannels();

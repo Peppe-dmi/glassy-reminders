@@ -42,10 +42,16 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
   const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [cardStates, setCardStates] = useState<{ scale: number; opacity: number }[]>([]);
+  
+  // Crea array infinito: duplica le card per l'effetto loop
+  const infiniteCategories = categories.length > 0 
+    ? [...categories, ...categories, ...categories] // Triplica per scroll infinito
+    : [];
+  const realLength = categories.length;
 
   // Calcola scala e opacità per ogni card basandosi sulla distanza dal centro
   const calculateCardStates = useCallback(() => {
-    if (!scrollRef.current || categories.length === 0) return;
+    if (!scrollRef.current || infiniteCategories.length === 0) return;
     
     const container = scrollRef.current;
     const containerRect = container.getBoundingClientRect();
@@ -72,19 +78,46 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
     });
     
     setCardStates(newStates);
-  }, [categories.length]);
+  }, [infiniteCategories.length]);
+
+  // Gestisce il loop infinito
+  const handleInfiniteScroll = useCallback(() => {
+    if (!scrollRef.current || realLength === 0) return;
+    
+    const container = scrollRef.current;
+    const scrollWidth = container.scrollWidth;
+    const clientWidth = container.clientWidth;
+    const scrollLeft = container.scrollLeft;
+    const sectionWidth = scrollWidth / 3; // Diviso per 3 sezioni (triplicate)
+    
+    // Se siamo nella prima sezione, salta alla seconda (centro)
+    if (scrollLeft < sectionWidth * 0.3) {
+      container.scrollLeft = scrollLeft + sectionWidth;
+    }
+    // Se siamo nella terza sezione, salta alla seconda (centro)
+    else if (scrollLeft > sectionWidth * 1.7) {
+      container.scrollLeft = scrollLeft - sectionWidth;
+    }
+  }, [realLength]);
 
   useEffect(() => {
     calculateCardStates();
     
     const container = scrollRef.current;
     if (container) {
+      // Posiziona inizialmente al centro (seconda sezione)
+      if (realLength > 0) {
+        const sectionWidth = container.scrollWidth / 3;
+        container.scrollLeft = sectionWidth;
+      }
+      
       // Usa requestAnimationFrame per scroll più fluido
       let ticking = false;
       const handleScroll = () => {
         if (!ticking) {
           requestAnimationFrame(() => {
             calculateCardStates();
+            handleInfiniteScroll();
             ticking = false;
           });
           ticking = true;
@@ -104,7 +137,7 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
       }
       window.removeEventListener('resize', calculateCardStates);
     };
-  }, [calculateCardStates, categories.length]);
+  }, [calculateCardStates, handleInfiniteScroll, realLength]);
 
 
   if (categories.length === 0) {
@@ -127,7 +160,7 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
         gap: '6px', // Gap stretto per effetto rullino compatto
       }}
     >
-      {categories.map((category, i) => {
+      {infiniteCategories.map((category, i) => {
         const count = reminders.filter(r => r.categoryId === category.id && !r.isCompleted).length;
         const borderColor = categoryBorderColors[category.color] || categoryBorderColors.default;
         const iconBg = categoryIconBg[category.color] || categoryIconBg.default;
@@ -144,10 +177,10 @@ export function CategoryCarousel({ categories, reminders }: CategoryCarouselProp
         
         return (
           <motion.button
-            key={category.id}
+            key={`${category.id}-${i}`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
+            transition={{ delay: (i % realLength) * 0.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => navigate(`/category/${category.id}`)}
             className="carousel-card flex-shrink-0 flex flex-col items-center"

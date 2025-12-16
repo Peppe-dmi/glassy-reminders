@@ -132,12 +132,12 @@ export function playRingtone(type: RingtoneType) {
   }
 }
 
-// Vibrate device with STRONG pattern for Samsung
+// Vibrate device with STRONG pattern
 export function vibrateDevice(enabled: boolean) {
   if (!enabled) return;
   
   if ('vibrate' in navigator) {
-    // Pattern forte per Samsung: lungo-pausa-lungo-pausa-molto lungo
+    // Pattern forte: lungo-pausa-lungo-pausa-molto lungo
     navigator.vibrate([500, 200, 500, 200, 800]);
   }
 }

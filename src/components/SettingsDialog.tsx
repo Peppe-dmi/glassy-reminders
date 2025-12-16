@@ -273,7 +273,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   </div>
                   {notifSettings.vibrationEnabled && (
                     <p className="text-xs text-muted-foreground mt-2">
-                      ⚡ Pattern forte per Samsung
+                      ⚡ Vibrazione forte attiva
                     </p>
                   )}
                 </div>
