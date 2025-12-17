@@ -36,6 +36,11 @@ public class NotificationActionReceiver extends BroadcastReceiver {
         
         Log.d(TAG, "Action received: " + action + ", notificationId: " + notificationId + ", reminderId: " + reminderId);
         
+        // STOP AlarmService se attivo
+        Intent stopServiceIntent = new Intent(context, AlarmService.class);
+        stopServiceIntent.setAction(AlarmService.ACTION_STOP);
+        context.stopService(stopServiceIntent);
+        
         // Cancella la notifica corrente
         NotificationManager notificationManager = 
             (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);

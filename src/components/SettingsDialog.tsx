@@ -1,11 +1,12 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Download, Upload, Bell, BellOff, Trash2, Vibrate, AlarmClock, Settings2, CheckCircle, Clock } from 'lucide-react';
+import { X, Download, Upload, Bell, BellOff, Trash2, Vibrate, AlarmClock, Settings2, CheckCircle, Clock, User } from 'lucide-react';
 import { useReminders } from '@/contexts/ReminderContext';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useRef, useState } from 'react';
 import { useNativeNotifications } from '@/hooks/useNativeNotifications';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
+import { useUserSettings } from '@/hooks/useUserSettings';
 import { NativeSettings, AndroidSettings } from 'capacitor-native-settings';
 
 interface SettingsDialogProps {
@@ -41,6 +42,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     setVibrationEnabled,
     setAlarmMode,
   } = useNotificationSettings();
+
+  // User settings
+  const { userName, setUserName } = useUserSettings();
+  const [nameInput, setNameInput] = useState(userName);
 
   // Apri impostazioni notifiche Android
   const openNotificationSettings = async () => {
@@ -197,6 +202,42 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             </div>
 
             <div className="space-y-6">
+              {/* User Name */}
+              <div className="space-y-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <User className="w-4 h-4" /> Il tuo nome
+                </h3>
+                <div className="glass-subtle rounded-xl p-4 space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Personalizza i saluti e le notifiche con il tuo nome
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      placeholder="Es: Nicolò"
+                      className="flex-1 bg-background/50 border border-border rounded-lg px-3 py-2 text-sm"
+                    />
+                    <Button
+                      onClick={() => {
+                        setUserName(nameInput);
+                        toast.success(nameInput ? `Ciao ${nameInput}! 👋` : 'Nome rimosso');
+                      }}
+                      variant="default"
+                      size="sm"
+                    >
+                      Salva
+                    </Button>
+                  </div>
+                  {userName && (
+                    <p className="text-xs text-emerald-500">
+                      ✓ Le notifiche diranno "Ei {userName}!"
+                    </p>
+                  )}
+                </div>
+              </div>
+
               {/* Notifications */}
               <div className="space-y-3">
                 <h3 className="font-semibold flex items-center gap-2">
