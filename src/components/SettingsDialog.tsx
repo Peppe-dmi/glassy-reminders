@@ -26,13 +26,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   } = useReminders();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const categoryInputRef = useRef<HTMLInputElement>(null);
-  const [testing, setTesting] = useState(false);
   
   // Native notifications
   const { 
     hasPermission, 
     requestPermission, 
-    testNotification,
     isNative 
   } = useNativeNotifications();
 
@@ -162,17 +160,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     }
   };
 
-  const handleTestNotification = async () => {
-    setTesting(true);
-    const success = await testNotification();
-    setTesting(false);
-    if (success) {
-      toast.success('Notifica di test programmata! Arriverà tra 5 secondi.');
-    } else {
-      toast.error('Errore nell\'invio della notifica');
-    }
-  };
-
   return (
     <AnimatePresence>
       {open && (
@@ -253,15 +240,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                       <p className="text-xs text-muted-foreground">
                         Le notifiche arriveranno anche con l'app chiusa! 🎉
                       </p>
-                      <Button
-                        onClick={handleTestNotification}
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        disabled={testing}
-                      >
-                        {testing ? '⏳ Invio...' : '🔔 Testa notifica'}
-                      </Button>
                     </>
                   ) : (
                     <>
@@ -364,9 +342,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     <Settings2 className="w-4 h-4 mr-2" />
                     Apri Impostazioni Notifiche
                   </Button>
-                  <p className="text-xs text-muted-foreground">
-                    Qui puoi scegliere suoneria, vibrazione e altre opzioni direttamente da Android.
-                  </p>
                 </div>
               </div>
 
