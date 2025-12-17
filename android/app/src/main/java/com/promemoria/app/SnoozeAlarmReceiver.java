@@ -41,6 +41,32 @@ public class SnoozeAlarmReceiver extends BroadcastReceiver {
         
         Log.d(TAG, "Showing snoozed notification: " + title);
         
+        // Leggi se alarmMode è attivo
+        SharedPreferences prefs = context.getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE);
+        String settingsJson = prefs.getString("notification-settings", "{}");
+        boolean alarmMode = settingsJson.contains("\"alarmMode\":true");
+        
+        if (alarmMode) {
+            // Avvia il servizio sveglia con suono in loop
+            Intent serviceIntent = new Intent(context, AlarmService.class);
+            serviceIntent.setAction(AlarmService.ACTION_START);
+            serviceIntent.putExtra(AlarmService.EXTRA_NOTIFICATION_ID, notificationId);
+            serviceIntent.putExtra(AlarmService.EXTRA_REMINDER_ID, reminderId);
+            serviceIntent.putExtra(AlarmService.EXTRA_TITLE, "🔄 " + (title != null ? title : "Promemoria"));
+            serviceIntent.putExtra(AlarmService.EXTRA_BODY, body != null ? body : "");
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent);
+            } else {
+                context.startService(serviceIntent);
+            }
+        } else {
+            // Notifica semplice
+            showSimpleNotification(context, reminderId, title, body, notificationId);
+        }
+    }
+    
+    private void showSimpleNotification(Context context, String reminderId, String title, String body, int notificationId) {
         // Crea canale se necessario
         createNotificationChannel(context);
         

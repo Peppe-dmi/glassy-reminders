@@ -3,6 +3,7 @@ import { Plus, Bell, Settings, ChevronRight, Clock, Sparkles, TrendingUp, Zap } 
 import { useReminders } from '@/contexts/ReminderContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useNativeNotifications } from '@/hooks/useNativeNotifications';
+import { useUserSettings } from '@/hooks/useUserSettings';
 import { AddCategoryDialog } from './AddCategoryDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { ThemeToggle } from './ThemeToggle';
@@ -33,6 +34,7 @@ export function Dashboard() {
   const { categories, reminders, getStats } = useReminders();
   const { theme } = useTheme();
   const { hasPermission, requestPermission } = useNativeNotifications();
+  const { getGreeting } = useUserSettings();
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState<'today' | 'upcoming' | 'all'>('today');
@@ -82,7 +84,7 @@ export function Dashboard() {
                 {format(new Date(), 'EEEE d MMMM', { locale: it })}
               </p>
               <h1 className="text-2xl font-bold font-display">
-                Ciao! 👋
+                {getGreeting()} 👋
               </h1>
             </motion.div>
 

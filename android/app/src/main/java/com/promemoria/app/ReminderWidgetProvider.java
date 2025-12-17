@@ -7,7 +7,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.net.Uri;
 import android.os.Bundle;
 import android.widget.RemoteViews;
 import android.util.Log;
@@ -29,6 +28,7 @@ public class ReminderWidgetProvider extends AppWidgetProvider {
     
     @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
+        Log.d(TAG, "onUpdate called for " + appWidgetIds.length + " widgets");
         for (int appWidgetId : appWidgetIds) {
             updateWidget(context, appWidgetManager, appWidgetId);
         }
@@ -38,7 +38,10 @@ public class ReminderWidgetProvider extends AppWidgetProvider {
     public void onReceive(Context context, Intent intent) {
         super.onReceive(context, intent);
         
-        if (ACTION_REFRESH.equals(intent.getAction())) {
+        Log.d(TAG, "onReceive: " + intent.getAction());
+        
+        if (ACTION_REFRESH.equals(intent.getAction()) || 
+            AppWidgetManager.ACTION_APPWIDGET_UPDATE.equals(intent.getAction())) {
             AppWidgetManager manager = AppWidgetManager.getInstance(context);
             int[] ids = manager.getAppWidgetIds(
                 new ComponentName(context, ReminderWidgetProvider.class)
@@ -53,61 +56,78 @@ public class ReminderWidgetProvider extends AppWidgetProvider {
         updateWidget(context, appWidgetManager, appWidgetId);
     }
     
+    @Override
+    public void onEnabled(Context context) {
+        Log.d(TAG, "Widget enabled");
+    }
+    
+    @Override
+    public void onDisabled(Context context) {
+        Log.d(TAG, "Widget disabled");
+    }
+    
     private void updateWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
-        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_layout);
-        
-        // Get widget size
-        Bundle options = appWidgetManager.getAppWidgetOptions(appWidgetId);
-        int minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT);
-        
-        // Get reminders data
-        List<ReminderItem> reminders = getReminders(context);
-        int pendingCount = 0;
-        for (ReminderItem r : reminders) {
-            if (!r.isCompleted) pendingCount++;
-        }
-        
-        // Update count badge
-        views.setTextViewText(R.id.widget_count, String.valueOf(pendingCount));
-        
-        // Show empty state or list based on data
-        if (pendingCount == 0) {
-            views.setViewVisibility(R.id.widget_list, android.view.View.GONE);
-            views.setViewVisibility(R.id.widget_empty, android.view.View.VISIBLE);
-        } else {
-            views.setViewVisibility(R.id.widget_list, android.view.View.VISIBLE);
-            views.setViewVisibility(R.id.widget_empty, android.view.View.GONE);
+        try {
+            RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_layout);
             
-            // Setup list adapter
-            Intent intent = new Intent(context, ReminderWidgetService.class);
-            intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
-            intent.setData(Uri.parse(intent.toUri(Intent.URI_INTENT_SCHEME)));
-            views.setRemoteAdapter(R.id.widget_list, intent);
+            // Get reminders data
+            List<ReminderItem> reminders = getReminders(context);
+            int pendingCount = 0;
+            for (ReminderItem r : reminders) {
+                if (!r.isCompleted) pendingCount++;
+            }
+            
+            Log.d(TAG, "Updating widget with " + pendingCount + " pending reminders");
+            
+            // Update count badge
+            views.setTextViewText(R.id.widget_count, String.valueOf(pendingCount));
+            
+            // Show empty state or list based on data
+            if (pendingCount == 0) {
+                views.setViewVisibility(R.id.widget_list, android.view.View.GONE);
+                views.setViewVisibility(R.id.widget_empty, android.view.View.VISIBLE);
+            } else {
+                views.setViewVisibility(R.id.widget_list, android.view.View.VISIBLE);
+                views.setViewVisibility(R.id.widget_empty, android.view.View.GONE);
+                
+                // Setup list adapter with unique URI
+                Intent intent = new Intent(context, ReminderWidgetService.class);
+                intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
+                // Add timestamp to force refresh
+                intent.setData(android.net.Uri.parse("promemoria://widget/" + appWidgetId + "/" + System.currentTimeMillis()));
+                views.setRemoteAdapter(R.id.widget_list, intent);
+                views.setEmptyView(R.id.widget_list, R.id.widget_empty);
+            }
+            
+            // Click on widget opens app
+            Intent mainIntent = new Intent(context, MainActivity.class);
+            mainIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            PendingIntent mainPending = PendingIntent.getActivity(context, appWidgetId, mainIntent, 
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            views.setOnClickPendingIntent(R.id.widget_container, mainPending);
+            
+            // Add button opens app
+            Intent addIntent = new Intent(context, MainActivity.class);
+            addIntent.putExtra("action", "add_reminder");
+            addIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            PendingIntent addPending = PendingIntent.getActivity(context, appWidgetId + 1000, addIntent, 
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            views.setOnClickPendingIntent(R.id.widget_add_button, addPending);
+            
+            // List item click template
+            Intent listClickIntent = new Intent(context, MainActivity.class);
+            PendingIntent listClickPending = PendingIntent.getActivity(context, appWidgetId + 2000, listClickIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            views.setPendingIntentTemplate(R.id.widget_list, listClickPending);
+            
+            appWidgetManager.updateAppWidget(appWidgetId, views);
+            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list);
+            
+            Log.d(TAG, "Widget updated successfully");
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error updating widget", e);
         }
-        
-        // Click on widget opens app
-        Intent mainIntent = new Intent(context, MainActivity.class);
-        mainIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent mainPending = PendingIntent.getActivity(context, 0, mainIntent, 
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        views.setOnClickPendingIntent(R.id.widget_container, mainPending);
-        
-        // Add button opens app
-        Intent addIntent = new Intent(context, MainActivity.class);
-        addIntent.putExtra("action", "add_reminder");
-        addIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent addPending = PendingIntent.getActivity(context, 1, addIntent, 
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        views.setOnClickPendingIntent(R.id.widget_add_button, addPending);
-        
-        // List item click template
-        Intent listClickIntent = new Intent(context, MainActivity.class);
-        PendingIntent listClickPending = PendingIntent.getActivity(context, 2, listClickIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        views.setPendingIntentTemplate(R.id.widget_list, listClickPending);
-        
-        appWidgetManager.updateAppWidget(appWidgetId, views);
-        appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list);
     }
     
     // Read reminders from SharedPreferences (synced from web app via Capacitor Preferences)
@@ -119,6 +139,8 @@ public class ReminderWidgetProvider extends AppWidgetProvider {
             SharedPreferences prefs = context.getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE);
             String remindersJson = prefs.getString("reminders", "[]");
             String categoriesJson = prefs.getString("categories", "[]");
+            
+            Log.d(TAG, "Reading reminders: " + remindersJson.substring(0, Math.min(100, remindersJson.length())));
             
             JSONArray categories = new JSONArray(categoriesJson);
             JSONArray reminders = new JSONArray(remindersJson);
@@ -194,6 +216,8 @@ public class ReminderWidgetProvider extends AppWidgetProvider {
                 return a.time.compareTo(b.time);
             });
             
+            Log.d(TAG, "Found " + items.size() + " pending reminders");
+            
         } catch (Exception e) {
             Log.e(TAG, "Error reading reminders", e);
         }
@@ -213,4 +237,3 @@ public class ReminderWidgetProvider extends AppWidgetProvider {
         public boolean isCompleted;
     }
 }
-
