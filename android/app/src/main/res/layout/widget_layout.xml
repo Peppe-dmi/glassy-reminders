@@ -12,23 +12,21 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingBottom="8dp">
+        android:gravity="center_vertical">
 
         <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:src="@mipmap/ic_launcher"
-            android:contentDescription="Promemoria" />
+            android:contentDescription="@null" />
 
         <TextView
-            android:id="@+id/widget_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="8dp"
+            android:layout_marginStart="6dp"
             android:text="Promemoria"
-            android:textSize="16sp"
+            android:textSize="14sp"
             android:textStyle="bold"
             android:textColor="#FFFFFF" />
 
@@ -37,11 +35,11 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="0"
-            android:textSize="14sp"
+            android:textSize="12sp"
             android:textColor="#FFFFFF"
             android:background="@drawable/widget_badge"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
             android:paddingTop="2dp"
             android:paddingBottom="2dp" />
     </LinearLayout>
@@ -50,48 +48,189 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
         android:background="#33FFFFFF" />
 
-    <!-- Reminder List -->
-    <ListView
-        android:id="@+id/widget_list"
+    <!-- Reminder 1 -->
+    <LinearLayout
+        android:id="@+id/widget_item_1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="6dp"
+        android:layout_marginBottom="4dp"
+        android:background="@drawable/widget_item_background"
+        android:visibility="gone">
+
+        <View
+            android:id="@+id/widget_priority_1"
+            android:layout_width="3dp"
+            android:layout_height="24dp"
+            android:layout_marginEnd="6dp"
+            android:background="#667eea" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_title_1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/widget_time_1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#99FFFFFF"
+                android:textSize="10sp"
+                android:maxLines="1" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/widget_icon_1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+
+    <!-- Reminder 2 -->
+    <LinearLayout
+        android:id="@+id/widget_item_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="6dp"
+        android:layout_marginBottom="4dp"
+        android:background="@drawable/widget_item_background"
+        android:visibility="gone">
+
+        <View
+            android:id="@+id/widget_priority_2"
+            android:layout_width="3dp"
+            android:layout_height="24dp"
+            android:layout_marginEnd="6dp"
+            android:background="#667eea" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_title_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/widget_time_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#99FFFFFF"
+                android:textSize="10sp"
+                android:maxLines="1" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/widget_icon_2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+
+    <!-- Reminder 3 -->
+    <LinearLayout
+        android:id="@+id/widget_item_3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="6dp"
+        android:background="@drawable/widget_item_background"
+        android:visibility="gone">
+
+        <View
+            android:id="@+id/widget_priority_3"
+            android:layout_width="3dp"
+            android:layout_height="24dp"
+            android:layout_marginEnd="6dp"
+            android:background="#667eea" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_title_3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/widget_time_3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#99FFFFFF"
+                android:textSize="10sp"
+                android:maxLines="1" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/widget_icon_3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+
+    <!-- Spacer -->
+    <View
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="8dp"
-        android:divider="@android:color/transparent"
-        android:dividerHeight="4dp"
-        android:scrollbars="none" />
+        android:layout_weight="1" />
 
     <!-- Empty state -->
     <TextView
         android:id="@+id/widget_empty"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="wrap_content"
         android:gravity="center"
         android:text="Nessun promemoria"
         android:textColor="#99FFFFFF"
-        android:textSize="13sp"
+        android:textSize="12sp"
         android:visibility="gone" />
 
-    <!-- Add button at bottom -->
-    <LinearLayout
+    <!-- Add button -->
+    <TextView
         android:id="@+id/widget_add_button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
         android:gravity="center"
         android:paddingTop="8dp"
-        android:paddingBottom="4dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="+ Nuovo"
-            android:textColor="#667eea"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-    </LinearLayout>
+        android:text="+ Nuovo"
+        android:textColor="#667eea"
+        android:textSize="12sp"
+        android:textStyle="bold" />
 
 </LinearLayout>

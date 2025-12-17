@@ -7,7 +7,8 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.os.Bundle;
+import android.graphics.Color;
+import android.view.View;
 import android.widget.RemoteViews;
 import android.util.Log;
 
@@ -51,12 +52,6 @@ public class ReminderWidgetProvider extends AppWidgetProvider {
     }
     
     @Override
-    public void onAppWidgetOptionsChanged(Context context, AppWidgetManager appWidgetManager, 
-            int appWidgetId, Bundle newOptions) {
-        updateWidget(context, appWidgetManager, appWidgetId);
-    }
-    
-    @Override
     public void onEnabled(Context context) {
         Log.d(TAG, "Widget enabled");
     }
@@ -70,33 +65,79 @@ public class ReminderWidgetProvider extends AppWidgetProvider {
         try {
             RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_layout);
             
-            // Get reminders data
+            // Get reminders
             List<ReminderItem> reminders = getReminders(context);
-            int pendingCount = 0;
-            for (ReminderItem r : reminders) {
-                if (!r.isCompleted) pendingCount++;
-            }
+            int count = reminders.size();
             
-            Log.d(TAG, "Updating widget with " + pendingCount + " pending reminders");
+            Log.d(TAG, "Updating widget with " + count + " reminders");
             
-            // Update count badge
-            views.setTextViewText(R.id.widget_count, String.valueOf(pendingCount));
+            // Update count
+            views.setTextViewText(R.id.widget_count, String.valueOf(count));
             
-            // Show empty state or list based on data
-            if (pendingCount == 0) {
-                views.setViewVisibility(R.id.widget_list, android.view.View.GONE);
-                views.setViewVisibility(R.id.widget_empty, android.view.View.VISIBLE);
+            // Hide all items first
+            views.setViewVisibility(R.id.widget_item_1, View.GONE);
+            views.setViewVisibility(R.id.widget_item_2, View.GONE);
+            views.setViewVisibility(R.id.widget_item_3, View.GONE);
+            
+            if (count == 0) {
+                views.setViewVisibility(R.id.widget_empty, View.VISIBLE);
             } else {
-                views.setViewVisibility(R.id.widget_list, android.view.View.VISIBLE);
-                views.setViewVisibility(R.id.widget_empty, android.view.View.GONE);
+                views.setViewVisibility(R.id.widget_empty, View.GONE);
                 
-                // Setup list adapter with unique URI
-                Intent intent = new Intent(context, ReminderWidgetService.class);
-                intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
-                // Add timestamp to force refresh
-                intent.setData(android.net.Uri.parse("promemoria://widget/" + appWidgetId + "/" + System.currentTimeMillis()));
-                views.setRemoteAdapter(R.id.widget_list, intent);
-                views.setEmptyView(R.id.widget_list, R.id.widget_empty);
+                // Show up to 3 reminders
+                for (int i = 0; i < Math.min(count, 3); i++) {
+                    ReminderItem item = reminders.get(i);
+                    int itemId, titleId, timeId, iconId, priorityId;
+                    
+                    switch (i) {
+                        case 0:
+                            itemId = R.id.widget_item_1;
+                            titleId = R.id.widget_title_1;
+                            timeId = R.id.widget_time_1;
+                            iconId = R.id.widget_icon_1;
+                            priorityId = R.id.widget_priority_1;
+                            break;
+                        case 1:
+                            itemId = R.id.widget_item_2;
+                            titleId = R.id.widget_title_2;
+                            timeId = R.id.widget_time_2;
+                            iconId = R.id.widget_icon_2;
+                            priorityId = R.id.widget_priority_2;
+                            break;
+                        default:
+                            itemId = R.id.widget_item_3;
+                            titleId = R.id.widget_title_3;
+                            timeId = R.id.widget_time_3;
+                            iconId = R.id.widget_icon_3;
+                            priorityId = R.id.widget_priority_3;
+                            break;
+                    }
+                    
+                    views.setViewVisibility(itemId, View.VISIBLE);
+                    views.setTextViewText(titleId, item.title);
+                    
+                    String timeText = item.displayDate;
+                    if (item.time != null && !item.time.isEmpty()) {
+                        timeText += " • " + item.time;
+                    }
+                    views.setTextViewText(timeId, timeText);
+                    views.setTextViewText(iconId, item.categoryIcon);
+                    
+                    // Priority color
+                    int priorityColor;
+                    switch (item.priority) {
+                        case "high":
+                            priorityColor = Color.parseColor("#ef4444");
+                            break;
+                        case "low":
+                            priorityColor = Color.parseColor("#22c55e");
+                            break;
+                        default:
+                            priorityColor = Color.parseColor("#667eea");
+                            break;
+                    }
+                    views.setInt(priorityId, "setBackgroundColor", priorityColor);
+                }
             }
             
             // Click on widget opens app
@@ -106,7 +147,7 @@ public class ReminderWidgetProvider extends AppWidgetProvider {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             views.setOnClickPendingIntent(R.id.widget_container, mainPending);
             
-            // Add button opens app
+            // Add button
             Intent addIntent = new Intent(context, MainActivity.class);
             addIntent.putExtra("action", "add_reminder");
             addIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -114,15 +155,7 @@ public class ReminderWidgetProvider extends AppWidgetProvider {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             views.setOnClickPendingIntent(R.id.widget_add_button, addPending);
             
-            // List item click template
-            Intent listClickIntent = new Intent(context, MainActivity.class);
-            PendingIntent listClickPending = PendingIntent.getActivity(context, appWidgetId + 2000, listClickIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-            views.setPendingIntentTemplate(R.id.widget_list, listClickPending);
-            
             appWidgetManager.updateAppWidget(appWidgetId, views);
-            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list);
-            
             Log.d(TAG, "Widget updated successfully");
             
         } catch (Exception e) {
@@ -130,29 +163,27 @@ public class ReminderWidgetProvider extends AppWidgetProvider {
         }
     }
     
-    // Read reminders from SharedPreferences (synced from web app via Capacitor Preferences)
     public static List<ReminderItem> getReminders(Context context) {
         List<ReminderItem> items = new ArrayList<>();
         
         try {
-            // Capacitor Preferences usa questo nome per SharedPreferences
             SharedPreferences prefs = context.getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE);
             String remindersJson = prefs.getString("reminders", "[]");
             String categoriesJson = prefs.getString("categories", "[]");
             
-            Log.d(TAG, "Reading reminders: " + remindersJson.substring(0, Math.min(100, remindersJson.length())));
+            Log.d(TAG, "Reading reminders...");
             
             JSONArray categories = new JSONArray(categoriesJson);
             JSONArray reminders = new JSONArray(remindersJson);
             
-            // Build category icon map
+            // Category icons map
             java.util.HashMap<String, String> categoryIcons = new java.util.HashMap<>();
             for (int i = 0; i < categories.length(); i++) {
                 JSONObject cat = categories.getJSONObject(i);
                 categoryIcons.put(cat.getString("id"), cat.optString("icon", "📝"));
             }
             
-            // Get today's date for filtering
+            // Today
             Calendar today = Calendar.getInstance();
             today.set(Calendar.HOUR_OF_DAY, 0);
             today.set(Calendar.MINUTE, 0);
@@ -165,26 +196,26 @@ public class ReminderWidgetProvider extends AppWidgetProvider {
             Calendar weekEnd = (Calendar) today.clone();
             weekEnd.add(Calendar.DAY_OF_YEAR, 7);
             
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+            
             for (int i = 0; i < reminders.length(); i++) {
                 JSONObject r = reminders.getJSONObject(i);
                 
-                boolean isCompleted = r.optBoolean("isCompleted", false);
-                if (isCompleted) continue; // Skip completed
+                if (r.optBoolean("isCompleted", false)) continue;
                 
                 String dateStr = r.optString("date", "");
                 if (dateStr.isEmpty()) continue;
                 
-                // Parse date
                 Date reminderDate;
                 try {
-                    reminderDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(dateStr);
+                    reminderDate = sdf.parse(dateStr);
                 } catch (Exception e) {
                     continue;
                 }
                 
-                // Only show reminders for the next 7 days
-                if (reminderDate == null || reminderDate.after(weekEnd.getTime())) continue;
-                if (reminderDate.before(today.getTime())) continue; // Skip past
+                if (reminderDate == null) continue;
+                if (reminderDate.after(weekEnd.getTime())) continue;
+                if (reminderDate.before(today.getTime())) continue;
                 
                 ReminderItem item = new ReminderItem();
                 item.id = r.optString("id", "");
@@ -195,21 +226,20 @@ public class ReminderWidgetProvider extends AppWidgetProvider {
                 item.categoryId = r.optString("categoryId", "");
                 String icon = categoryIcons.get(item.categoryId);
                 item.categoryIcon = icon != null ? icon : "📝";
-                item.isCompleted = isCompleted;
                 
-                // Format relative date
+                // Display date
                 if (reminderDate.before(tomorrow.getTime())) {
                     item.displayDate = "Oggi";
                 } else if (reminderDate.before(new Date(tomorrow.getTimeInMillis() + 86400000))) {
                     item.displayDate = "Domani";
                 } else {
-                    item.displayDate = new SimpleDateFormat("EEE d MMM", Locale.getDefault()).format(reminderDate);
+                    item.displayDate = new SimpleDateFormat("EEE d", Locale.getDefault()).format(reminderDate);
                 }
                 
                 items.add(item);
             }
             
-            // Sort by date and time
+            // Sort
             items.sort((a, b) -> {
                 int dateCompare = a.date.compareTo(b.date);
                 if (dateCompare != 0) return dateCompare;
@@ -234,6 +264,5 @@ public class ReminderWidgetProvider extends AppWidgetProvider {
         public String priority;
         public String categoryId;
         public String categoryIcon;
-        public boolean isCompleted;
     }
 }
