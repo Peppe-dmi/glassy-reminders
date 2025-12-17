@@ -251,7 +251,7 @@ export function useNativeNotifications() {
           actions: [
             {
               id: 'stop',
-              title: '✓ Fatto',
+              title: 'Completata',
               destructive: false,
             },
             {
