@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { LocalNotifications, LocalNotificationSchema, Channel } from '@capacitor/local-notifications';
+import { LocalNotifications, LocalNotificationSchema, Channel, ActionType } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
-import { RingtoneType, getAndroidSoundName, playRingtone, vibrateDevice } from './useNotificationSettings';
 
 interface NativeNotificationOptions {
   id: string;
@@ -20,19 +19,14 @@ function getNotificationSettings() {
   } catch (e) {
     console.log('Error reading notification settings');
   }
-  return { vibrationEnabled: true, ringtone: 'chime', alarmMode: true };
+  return { vibrationEnabled: true, alarmMode: true };
 }
 
-// Channel IDs for each ringtone
-const CHANNEL_IDS = {
-  default: 'promemoria-default',
-  chime: 'promemoria-chime',
-  beep: 'promemoria-beep',
-  gentle: 'promemoria-gentle',
-  urgent: 'promemoria-urgent',
-  alert: 'promemoria-alert',
-  silent: 'promemoria-silent',
-} as const;
+// Channel ID
+const CHANNEL_ID = 'promemoria-alarm';
+
+// Action type ID per notifiche alarm-style
+const ALARM_ACTION_TYPE = 'alarm-actions';
 
 export function useNativeNotifications() {
   const [hasPermission, setHasPermission] = useState(false);
@@ -85,7 +79,7 @@ export function useNativeNotifications() {
     }
   }, [isNative]);
 
-  // Schedule multiple notifications for ALARM MODE (like an alarm clock)
+  // Schedule notification with alarm-style actions
   const scheduleNotification = useCallback(async (options: NativeNotificationOptions) => {
     const settings = getNotificationSettings();
     const baseId = hashStringToNumber(options.id);
@@ -98,85 +92,52 @@ export function useNativeNotifications() {
       if (delay > 0) {
         console.log(`⏰ Notifica web programmata tra ${Math.round(delay / 1000)} secondi`);
         
-        // Schedule multiple notifications if alarm mode is on
-        const intervals = settings.alarmMode ? [0, 60000, 120000] : [0]; // 0, 1min, 2min
-        
-        intervals.forEach((extraDelay, index) => {
-          setTimeout(() => {
-            if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification(`${options.title}${index > 0 ? ` (${index + 1})` : ''}`, {
-                body: options.body,
-                icon: '/icon-192.png',
-                tag: `${options.id}-${index}`,
-                requireInteraction: true,
-                silent: true,
-              });
-              // Play selected ringtone
-              if (settings.ringtone !== 'silent') {
-                playRingtone(settings.ringtone as RingtoneType);
-              }
-              // Vibrate if enabled
-              if (settings.vibrationEnabled) {
-                vibrateDevice(true);
-              }
+        setTimeout(() => {
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(options.title, {
+              body: options.body,
+              icon: '/icon-192.png',
+              tag: options.id,
+              requireInteraction: true,
+            });
+            if (settings.vibrationEnabled && 'vibrate' in navigator) {
+              navigator.vibrate([500, 200, 500, 200, 500]);
             }
-          }, delay + extraDelay);
-        });
+          }
+        }, delay);
       }
       return baseId;
     }
 
     try {
-      const notifications: LocalNotificationSchema[] = [];
-      
-      // Get the channel ID based on ringtone setting
-      const ringtone = settings.ringtone as RingtoneType;
-      const channelId = CHANNEL_IDS[ringtone] || CHANNEL_IDS.chime;
-      
-      // ALARM MODE: Schedule 3-4 notifications at 1 minute intervals
-      const intervals = settings.alarmMode 
-        ? [0, 60000, 120000, 180000] // 0, 1min, 2min, 3min
-        : [0]; // Single notification
-      
-      for (let i = 0; i < intervals.length; i++) {
-        const notifId = baseId + i;
-        const scheduledTime = new Date(options.scheduledAt.getTime() + intervals[i]);
-        
-        const notification: LocalNotificationSchema = {
-          id: notifId,
-          title: i === 0 ? options.title : `⏰ ${options.title} (promemoria ${i + 1})`,
-          body: options.body,
-          schedule: {
-            at: scheduledTime,
-            allowWhileIdle: true, // Important for Doze mode on Android
-          },
-          smallIcon: 'ic_stat_notification',
-          largeIcon: 'ic_launcher',
-          // Use the correct channel for the selected ringtone
-          channelId: channelId,
-          // Extra data for handling
-          extra: {
-            reminderId: options.id,
-            alarmIndex: i,
-            totalAlarms: intervals.length,
-          },
-          // Make it high priority
-          ongoing: false,
-          autoCancel: true,
-        };
+      const notification: LocalNotificationSchema = {
+        id: baseId,
+        title: `⏰ ${options.title}`,
+        body: options.body,
+        schedule: {
+          at: options.scheduledAt,
+          allowWhileIdle: true,
+        },
+        smallIcon: 'ic_stat_notification',
+        largeIcon: 'ic_launcher',
+        channelId: CHANNEL_ID,
+        // Alarm-style: ongoing e fullScreenIntent per essere più invasivo
+        ongoing: true, // Non può essere dismessa con swipe
+        autoCancel: false,
+        // Action buttons
+        actionTypeId: ALARM_ACTION_TYPE,
+        extra: {
+          reminderId: options.id,
+          scheduledTime: options.scheduledAt.getTime(),
+        },
+      };
 
-        notifications.push(notification);
-      }
-
-      await LocalNotifications.schedule({ notifications });
+      await LocalNotifications.schedule({ notifications: [notification] });
       
-      console.log('✅ Notifiche programmate:', {
-        count: notifications.length,
-        baseId,
+      console.log('✅ Notifica alarm-style programmata:', {
+        id: baseId,
         title: options.title,
         at: options.scheduledAt.toLocaleString(),
-        channelId,
-        alarmMode: settings.alarmMode,
       });
 
       return baseId;
@@ -195,12 +156,10 @@ export function useNativeNotifications() {
     }
 
     try {
-      // Cancel all alarm mode notifications (base + 0,1,2,3)
-      const idsToCancel = [baseId, baseId + 1, baseId + 2, baseId + 3];
       await LocalNotifications.cancel({
-        notifications: idsToCancel.map(nid => ({ id: nid })),
+        notifications: [{ id: baseId }],
       });
-      console.log('🗑️ Notifiche cancellate:', idsToCancel);
+      console.log('🗑️ Notifica cancellata:', baseId);
     } catch (error) {
       console.error('❌ Errore cancellazione notifica:', error);
     }
@@ -228,115 +187,86 @@ export function useNativeNotifications() {
 
     const result = await scheduleNotification({
       id: `test-${Date.now()}`,
-      title: '🧪 Test Notifica',
-      body: 'Le notifiche funzionano! 🎉 Se hai modalità sveglia attiva, ne arriveranno altre.',
+      title: 'Test Promemoria',
+      body: 'Tocca per aprire l\'app, usa i pulsanti per gestire!',
       scheduledAt,
     });
 
     return !!result;
   }, [scheduleNotification]);
 
-  // Setup notification channels for Android
+  // Snooze: ri-programma la notifica per 5 minuti dopo
+  const snoozeNotification = useCallback(async (id: string, title: string, body: string) => {
+    const snoozeTime = new Date(Date.now() + 5 * 60 * 1000); // 5 minuti
+    
+    // Prima cancella la notifica corrente
+    await cancelNotification(id);
+    
+    // Poi riprogrammala
+    await scheduleNotification({
+      id: `${id}-snooze-${Date.now()}`,
+      title: `🔄 ${title}`,
+      body: body,
+      scheduledAt: snoozeTime,
+    });
+    
+    console.log('⏰ Notifica rimandatadi 5 minuti');
+  }, [cancelNotification, scheduleNotification]);
+
+  // Setup notification channels and action types for Android
   useEffect(() => {
     if (isNative) {
       setupNotificationChannels();
+      setupActionTypes();
       setupNotificationListeners();
     }
   }, [isNative]);
 
   const setupNotificationChannels = async () => {
     try {
-      // Delete old channels if they exist
-      try {
-        await LocalNotifications.deleteChannel({ id: 'promemoria-alarm' });
-      } catch (e) { /* ignore */ }
+      // Create high-priority alarm channel
+      const channel: Channel = {
+        id: CHANNEL_ID,
+        name: 'Promemoria',
+        description: 'Notifiche per i tuoi promemoria',
+        importance: 5, // MAX importance
+        visibility: 1, // PUBLIC
+        vibration: true,
+        lights: true,
+        lightColor: '#667eea',
+      };
 
-      // Create a channel for each ringtone type - Android requires separate channels for different sounds
-      const channels: Channel[] = [
+      await LocalNotifications.createChannel(channel);
+      console.log('📢 Canale notifiche alarm creato');
+    } catch (error) {
+      console.log('Errore creazione canale:', error);
+    }
+  };
+
+  const setupActionTypes = async () => {
+    try {
+      const actionTypes: ActionType[] = [
         {
-          id: CHANNEL_IDS.default,
-          name: 'Promemoria - Standard',
-          description: 'Notifiche con suono standard Android',
-          importance: 5,
-          visibility: 1,
-          vibration: true,
-          lights: true,
-          lightColor: '#667eea',
-        },
-        {
-          id: CHANNEL_IDS.chime,
-          name: 'Promemoria - Carillon',
-          description: 'Notifiche con suono carillon',
-          importance: 5,
-          visibility: 1,
-          sound: 'chime.mp3',
-          vibration: true,
-          lights: true,
-          lightColor: '#667eea',
-        },
-        {
-          id: CHANNEL_IDS.beep,
-          name: 'Promemoria - Beep',
-          description: 'Notifiche con suono beep',
-          importance: 5,
-          visibility: 1,
-          sound: 'beep.mp3',
-          vibration: true,
-          lights: true,
-          lightColor: '#667eea',
-        },
-        {
-          id: CHANNEL_IDS.gentle,
-          name: 'Promemoria - Delicato',
-          description: 'Notifiche con suono delicato',
-          importance: 5,
-          visibility: 1,
-          sound: 'gentle.mp3',
-          vibration: true,
-          lights: true,
-          lightColor: '#667eea',
-        },
-        {
-          id: CHANNEL_IDS.urgent,
-          name: 'Promemoria - Urgente',
-          description: 'Notifiche con suono urgente',
-          importance: 5,
-          visibility: 1,
-          sound: 'urgent.mp3',
-          vibration: true,
-          lights: true,
-          lightColor: '#667eea',
-        },
-        {
-          id: CHANNEL_IDS.alert,
-          name: 'Promemoria - Allarme',
-          description: 'Notifiche con suono allarme',
-          importance: 5,
-          visibility: 1,
-          sound: 'alert.mp3',
-          vibration: true,
-          lights: true,
-          lightColor: '#667eea',
-        },
-        {
-          id: CHANNEL_IDS.silent,
-          name: 'Promemoria - Silenzioso',
-          description: 'Notifiche silenziose',
-          importance: 4,
-          visibility: 1,
-          vibration: false,
-          lights: true,
-          lightColor: '#667eea',
+          id: ALARM_ACTION_TYPE,
+          actions: [
+            {
+              id: 'stop',
+              title: '✓ Fatto',
+              destructive: false,
+            },
+            {
+              id: 'snooze',
+              title: '⏰ 5 min',
+              destructive: false,
+            },
+          ],
         },
       ];
 
-      for (const channel of channels) {
-        await LocalNotifications.createChannel(channel);
-      }
-
-      console.log('📢 Canali notifiche Android creati per ogni suoneria');
+      await LocalNotifications.registerActionTypes({ types: actionTypes });
+      console.log('📱 Action types registrati: Fatto, 5 min');
     } catch (error) {
-      console.log('Errore creazione canali:', error);
+      console.log('Errore registrazione action types:', error);
     }
   };
 
@@ -346,29 +276,60 @@ export function useNativeNotifications() {
       console.log('🔔 Notifica ricevuta:', notification);
     });
 
-    // When user taps notification - cancel remaining alarms
+    // When user taps notification or action button
     LocalNotifications.addListener('localNotificationActionPerformed', async (action) => {
       console.log('👆 Azione su notifica:', action);
       
-      const extra = action.notification.extra;
-      if (extra?.reminderId) {
-        // User interacted - cancel remaining alarm notifications
-        const baseId = hashStringToNumber(extra.reminderId);
-        const remainingIds = [];
+      const { actionId, notification } = action;
+      const extra = notification.extra;
+      
+      if (actionId === 'snooze' && extra?.reminderId) {
+        // Rimanda di 5 minuti
+        const snoozeTime = new Date(Date.now() + 5 * 60 * 1000);
         
-        for (let i = (extra.alarmIndex || 0) + 1; i < (extra.totalAlarms || 4); i++) {
-          remainingIds.push({ id: baseId + i });
+        // Cancel current
+        await LocalNotifications.cancel({ 
+          notifications: [{ id: notification.id }] 
+        });
+        
+        // Schedule new one
+        const newId = hashStringToNumber(`${extra.reminderId}-snooze-${Date.now()}`);
+        await LocalNotifications.schedule({
+          notifications: [{
+            id: newId,
+            title: `🔄 ${notification.title?.replace('⏰ ', '')}`,
+            body: notification.body || '',
+            schedule: { at: snoozeTime, allowWhileIdle: true },
+            smallIcon: 'ic_stat_notification',
+            largeIcon: 'ic_launcher',
+            channelId: CHANNEL_ID,
+            ongoing: true,
+            autoCancel: false,
+            actionTypeId: ALARM_ACTION_TYPE,
+            extra: { reminderId: extra.reminderId },
+          }],
+        });
+        
+        console.log('⏰ Notifica rimandata di 5 minuti');
+      } else if (actionId === 'stop' || actionId === 'tap') {
+        // Stoppa - cancella la notifica
+        await LocalNotifications.cancel({ 
+          notifications: [{ id: notification.id }] 
+        });
+        console.log('✓ Notifica stoppata');
+        
+        // Dispatch event per l'app
+        if (extra?.reminderId) {
+          window.dispatchEvent(new CustomEvent('notification-stopped', { 
+            detail: { reminderId: extra.reminderId } 
+          }));
         }
-        
-        if (remainingIds.length > 0) {
-          await LocalNotifications.cancel({ notifications: remainingIds });
-          console.log('🗑️ Notifiche rimanenti cancellate:', remainingIds);
-        }
-        
-        window.dispatchEvent(new CustomEvent('notification-clicked', { 
-          detail: { reminderId: extra.reminderId } 
-        }));
       }
+      
+      // Open app on tap
+      window.dispatchEvent(new CustomEvent('notification-clicked', { 
+        detail: { reminderId: extra?.reminderId } 
+      }));
     });
   };
 
@@ -380,10 +341,11 @@ export function useNativeNotifications() {
     cancelNotification,
     cancelAllNotifications,
     testNotification,
+    snoozeNotification,
   };
 }
 
-// Helper to convert string ID to numeric ID (required by Capacitor)
+// Helper to convert string ID to numeric ID
 function hashStringToNumber(str: string): number {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -391,6 +353,5 @@ function hashStringToNumber(str: string): number {
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash;
   }
-  // Make sure it's positive and not too close to MAX_INT to allow +3 for alarm mode
   return Math.abs(hash) % 1000000000;
 }

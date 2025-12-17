@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Category, Reminder, ExportData, CategoryColor } from '@/types/reminder';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useNativeNotifications } from '@/hooks/useNativeNotifications';
+import { syncDataToWidget } from '@/hooks/useWidgetSync';
 import { addDays, addWeeks, addMonths, addYears, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isSameDay, startOfDay, endOfDay } from 'date-fns';
 
 interface ReminderStats {
@@ -93,6 +94,20 @@ export function ReminderProvider({ children }: { children: React.ReactNode }) {
       }
     });
   }, []);
+
+  // Sincronizza dati col widget Android ogni volta che cambiano
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    // Salta il primo render per evitare sync inutili
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      // Sincronizza comunque all'avvio
+      syncDataToWidget();
+      return;
+    }
+    // Sincronizza quando cambiano i dati
+    syncDataToWidget();
+  }, [reminders, categories]);
 
   const addCategory = useCallback((name: string, icon: string, color: CategoryColor): Category => {
     const newCategory: Category = {
