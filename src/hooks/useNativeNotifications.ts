@@ -284,20 +284,20 @@ export function useNativeNotifications() {
       const extra = notification.extra;
       
       if (actionId === 'snooze' && extra?.reminderId) {
-        // Rimanda di 5 minuti
+        // Rimanda di 5 minuti - NON aprire l'app
         const snoozeTime = new Date(Date.now() + 5 * 60 * 1000);
         
-        // Cancel current
+        // Cancel current notification
         await LocalNotifications.cancel({ 
           notifications: [{ id: notification.id }] 
         });
         
-        // Schedule new one
+        // Schedule new one for 5 minutes later
         const newId = hashStringToNumber(`${extra.reminderId}-snooze-${Date.now()}`);
         await LocalNotifications.schedule({
           notifications: [{
             id: newId,
-            title: `🔄 ${notification.title?.replace('⏰ ', '')}`,
+            title: `🔄 ${notification.title?.replace('⏰ ', '').replace('🔄 ', '')}`,
             body: notification.body || '',
             schedule: { at: snoozeTime, allowWhileIdle: true },
             smallIcon: 'ic_stat_notification',
@@ -311,25 +311,35 @@ export function useNativeNotifications() {
         });
         
         console.log('⏰ Notifica rimandata di 5 minuti');
-      } else if (actionId === 'stop' || actionId === 'tap') {
-        // Stoppa - cancella la notifica
+        // Non aprire l'app per snooze - ritorna subito
+        return;
+        
+      } else if (actionId === 'stop') {
+        // Completata - cancella la notifica, NON aprire l'app
         await LocalNotifications.cancel({ 
           notifications: [{ id: notification.id }] 
         });
-        console.log('✓ Notifica stoppata');
+        console.log('✓ Notifica completata');
         
-        // Dispatch event per l'app
+        // Dispatch event per marcare come completato
         if (extra?.reminderId) {
           window.dispatchEvent(new CustomEvent('notification-stopped', { 
             detail: { reminderId: extra.reminderId } 
           }));
         }
+        // Non aprire l'app per stop
+        return;
+        
+      } else if (actionId === 'tap') {
+        // Tap sulla notifica stessa - apri l'app
+        await LocalNotifications.cancel({ 
+          notifications: [{ id: notification.id }] 
+        });
+        
+        window.dispatchEvent(new CustomEvent('notification-clicked', { 
+          detail: { reminderId: extra?.reminderId } 
+        }));
       }
-      
-      // Open app on tap
-      window.dispatchEvent(new CustomEvent('notification-clicked', { 
-        detail: { reminderId: extra?.reminderId } 
-      }));
     });
   };
 

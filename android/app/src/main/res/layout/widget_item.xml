@@ -12,7 +12,7 @@
     <View
         android:id="@+id/widget_item_priority"
         android:layout_width="4dp"
-        android:layout_height="match_parent"
+        android:layout_height="32dp"
         android:layout_marginEnd="8dp"
         android:background="#667eea" />
 
@@ -51,4 +51,3 @@
         android:layout_marginStart="8dp" />
 
 </LinearLayout>
-

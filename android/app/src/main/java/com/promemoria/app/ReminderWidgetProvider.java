@@ -10,7 +10,6 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.widget.RemoteViews;
-import android.widget.RemoteViewsService;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -172,7 +171,8 @@ public class ReminderWidgetProvider extends AppWidgetProvider {
                 item.date = dateStr;
                 item.priority = r.optString("priority", "medium");
                 item.categoryId = r.optString("categoryId", "");
-                item.categoryIcon = categoryIcons.getOrDefault(item.categoryId, "📝");
+                String icon = categoryIcons.get(item.categoryId);
+                item.categoryIcon = icon != null ? icon : "📝";
                 item.isCompleted = isCompleted;
                 
                 // Format relative date

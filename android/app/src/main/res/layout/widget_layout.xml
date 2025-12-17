@@ -19,7 +19,7 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@mipmap/ic_launcher"
-            android:contentDescription="@string/app_name" />
+            android:contentDescription="Promemoria" />
 
         <TextView
             android:id="@+id/widget_title"
@@ -27,7 +27,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginStart="8dp"
-            android:text="@string/app_name"
+            android:text="Promemoria"
             android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="#FFFFFF" />
@@ -70,7 +70,7 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:gravity="center"
-        android:text="@string/widget_empty"
+        android:text="Nessun promemoria"
         android:textColor="#99FFFFFF"
         android:textSize="13sp"
         android:visibility="gone" />
@@ -83,23 +83,15 @@
         android:orientation="horizontal"
         android:gravity="center"
         android:paddingTop="8dp"
-        android:background="?android:attr/selectableItemBackground">
-
-        <ImageView
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:src="@android:drawable/ic_input_add"
-            android:tint="#FFFFFF"
-            android:contentDescription="@string/widget_add" />
+        android:paddingBottom="4dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
-            android:text="@string/widget_add"
-            android:textColor="#FFFFFF"
-            android:textSize="13sp" />
+            android:text="+ Nuovo"
+            android:textColor="#667eea"
+            android:textSize="13sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
 </LinearLayout>
-
