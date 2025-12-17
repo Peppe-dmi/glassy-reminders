@@ -31,19 +31,23 @@ export function useUserSettings() {
   const getGreeting = () => {
     const hour = new Date().getHours();
     let greeting = '';
+    let emoji = '';
     
     if (hour < 12) {
       greeting = 'Buongiorno';
+      emoji = '☀️';
     } else if (hour < 18) {
       greeting = 'Buon pomeriggio';
+      emoji = '👋';
     } else {
       greeting = 'Buonasera';
+      emoji = '😌';
     }
     
     if (settings.userName) {
-      return `${greeting}, ${settings.userName}!`;
+      return `${greeting}, ${settings.userName}! ${emoji}`;
     }
-    return greeting;
+    return `${greeting}! ${emoji}`;
   };
 
   return {

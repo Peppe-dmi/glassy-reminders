@@ -84,7 +84,7 @@ export function Dashboard() {
                 {format(new Date(), 'EEEE d MMMM', { locale: it })}
               </p>
               <h1 className="text-2xl font-bold font-display">
-                {getGreeting()} 👋
+                {getGreeting()}
               </h1>
             </motion.div>
 
