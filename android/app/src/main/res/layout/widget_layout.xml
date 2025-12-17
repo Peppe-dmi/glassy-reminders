@@ -1,33 +1,264 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="8dp"
-    android:background="#DD1a1a2e">
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/widget_glass_background">
 
+    <!-- Header -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:gravity="center">
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
 
+        <!-- App icon -->
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@mipmap/ic_launcher"
+            android:contentDescription="@null" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Promemoria"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="#1a1a2e" />
+
+            <TextView
+                android:id="@+id/widget_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Oggi"
+                android:textSize="11sp"
+                android:textColor="#666666" />
+        </LinearLayout>
+
+        <!-- Count badge -->
         <TextView
             android:id="@+id/widget_count"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:gravity="center"
+            android:text="0"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/widget_count_bg" />
+    </LinearLayout>
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp"
+        android:background="#15000000" />
+
+    <!-- Reminder 1 -->
+    <LinearLayout
+        android:id="@+id/widget_item_1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="10dp"
+        android:layout_marginBottom="6dp"
+        android:background="@drawable/widget_item_bg"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/widget_icon_1"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="0"
-            android:textSize="32sp"
-            android:textStyle="bold"
-            android:textColor="#667eea" />
+            android:textSize="18sp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_title_1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#1a1a2e"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/widget_time_1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#888888"
+                android:textSize="11sp"
+                android:maxLines="1" />
+        </LinearLayout>
+
+        <View
+            android:id="@+id/widget_priority_1"
+            android:layout_width="4dp"
+            android:layout_height="28dp"
+            android:background="#667eea" />
+    </LinearLayout>
+
+    <!-- Reminder 2 -->
+    <LinearLayout
+        android:id="@+id/widget_item_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="10dp"
+        android:layout_marginBottom="6dp"
+        android:background="@drawable/widget_item_bg"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/widget_icon_2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="18sp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_title_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#1a1a2e"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/widget_time_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#888888"
+                android:textSize="11sp"
+                android:maxLines="1" />
+        </LinearLayout>
+
+        <View
+            android:id="@+id/widget_priority_2"
+            android:layout_width="4dp"
+            android:layout_height="28dp"
+            android:background="#667eea" />
+    </LinearLayout>
+
+    <!-- Reminder 3 -->
+    <LinearLayout
+        android:id="@+id/widget_item_3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="10dp"
+        android:background="@drawable/widget_item_bg"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/widget_icon_3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="18sp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_title_3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#1a1a2e"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/widget_time_3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#888888"
+                android:textSize="11sp"
+                android:maxLines="1" />
+        </LinearLayout>
+
+        <View
+            android:id="@+id/widget_priority_3"
+            android:layout_width="4dp"
+            android:layout_height="28dp"
+            android:background="#667eea" />
+    </LinearLayout>
+
+    <!-- Spacer -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- Empty state -->
+    <LinearLayout
+        android:id="@+id/widget_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone"
+        android:padding="16dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Promemoria"
-            android:textSize="12sp"
-            android:textColor="#FFFFFF" />
+            android:text="✨"
+            android:textSize="32sp" />
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Nessun promemoria"
+            android:textColor="#888888"
+            android:textSize="13sp" />
     </LinearLayout>
 
-</FrameLayout>
+    <!-- Footer - tap to add -->
+    <TextView
+        android:id="@+id/widget_add_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingTop="8dp"
+        android:text="+ Aggiungi"
+        android:textColor="#667eea"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+</LinearLayout>
