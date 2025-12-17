@@ -1,15 +1,17 @@
 package com.promemoria.app;
 
+import android.app.AlarmManager;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.Build;
 import android.util.Log;
 
-import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
-
-import java.util.Calendar;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 /**
  * Receiver per gestire le azioni delle notifiche SENZA aprire l'app
@@ -32,67 +34,148 @@ public class NotificationActionReceiver extends BroadcastReceiver {
         String title = intent.getStringExtra(EXTRA_TITLE);
         String body = intent.getStringExtra(EXTRA_BODY);
         
-        Log.d(TAG, "Action received: " + action + ", notificationId: " + notificationId);
+        Log.d(TAG, "Action received: " + action + ", notificationId: " + notificationId + ", reminderId: " + reminderId);
         
         // Cancella la notifica corrente
         NotificationManager notificationManager = 
             (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (notificationManager != null && notificationId != -1) {
             notificationManager.cancel(notificationId);
+            Log.d(TAG, "Notification cancelled: " + notificationId);
         }
         
+        // Cancella eventuali alarm pendenti per questo reminder
+        cancelPendingAlarms(context, reminderId);
+        
         if (ACTION_SNOOZE.equals(action)) {
-            // Rimanda di 5 minuti
+            // Verifica se il promemoria esiste ancora
+            if (!reminderExists(context, reminderId)) {
+                Log.d(TAG, "Reminder no longer exists, skipping snooze: " + reminderId);
+                return;
+            }
+            
             Log.d(TAG, "Snoozing notification for 5 minutes");
             scheduleSnoozeNotification(context, reminderId, title, body);
         } else if (ACTION_COMPLETE.equals(action)) {
-            // Completato - la notifica è già cancellata
             Log.d(TAG, "Notification marked as complete");
+            // La notifica è già cancellata, non fare altro
         }
     }
     
-    private void scheduleSnoozeNotification(Context context, String reminderId, String title, String body) {
-        // Programma una nuova notifica per 5 minuti dopo usando AlarmManager
-        android.app.AlarmManager alarmManager = 
-            (android.app.AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+    /**
+     * Cancella eventuali alarm pendenti per questo reminder
+     */
+    private void cancelPendingAlarms(Context context, String reminderId) {
+        if (reminderId == null) return;
         
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarmManager == null) return;
+        
+        // Usa un ID consistente basato sul reminderId
+        int requestCode = getConsistentId(reminderId);
+        
+        Intent intent = new Intent(context, SnoozeAlarmReceiver.class);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+            context,
+            requestCode,
+            intent,
+            PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE
+        );
+        
+        if (pendingIntent != null) {
+            alarmManager.cancel(pendingIntent);
+            pendingIntent.cancel();
+            Log.d(TAG, "Cancelled pending alarm for: " + reminderId);
+        }
+    }
+    
+    /**
+     * Verifica se il promemoria esiste ancora nel localStorage
+     */
+    private boolean reminderExists(Context context, String reminderId) {
+        if (reminderId == null || reminderId.isEmpty() || reminderId.startsWith("test-")) {
+            return true; // Permetti test notifications
+        }
+        
+        try {
+            SharedPreferences prefs = context.getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE);
+            String remindersJson = prefs.getString("reminders", "[]");
+            JSONArray reminders = new JSONArray(remindersJson);
+            
+            for (int i = 0; i < reminders.length(); i++) {
+                JSONObject r = reminders.getJSONObject(i);
+                if (reminderId.equals(r.optString("id", ""))) {
+                    // Controlla anche che non sia completato
+                    return !r.optBoolean("isCompleted", false);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error checking reminder existence", e);
+            return true; // In caso di errore, permetti la notifica
+        }
+        
+        return false;
+    }
+    
+    private void scheduleSnoozeNotification(Context context, String reminderId, String title, String body) {
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (alarmManager == null) return;
+        
+        // Usa ID consistente per evitare duplicati
+        int notificationId = getConsistentId(reminderId);
+        int requestCode = notificationId; // Stesso ID per sovrascrivere
         
         // Crea intent per la notifica snoozata
         Intent notifyIntent = new Intent(context, SnoozeAlarmReceiver.class);
         notifyIntent.putExtra(EXTRA_REMINDER_ID, reminderId);
-        notifyIntent.putExtra(EXTRA_TITLE, title != null ? title.replace("⏰ ", "").replace("🔄 ", "") : "Promemoria");
+        notifyIntent.putExtra(EXTRA_TITLE, cleanTitle(title));
         notifyIntent.putExtra(EXTRA_BODY, body != null ? body : "");
-        notifyIntent.putExtra(EXTRA_NOTIFICATION_ID, Math.abs((reminderId + System.currentTimeMillis()).hashCode()) % 1000000);
+        notifyIntent.putExtra(EXTRA_NOTIFICATION_ID, notificationId);
         
-        android.app.PendingIntent pendingIntent = android.app.PendingIntent.getBroadcast(
+        // FLAG_UPDATE_CURRENT per sovrascrivere alarm esistenti
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(
             context,
-            (int) System.currentTimeMillis(),
+            requestCode,
             notifyIntent,
-            android.app.PendingIntent.FLAG_ONE_SHOT | android.app.PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
         
         // 5 minuti da ora
         long triggerTime = System.currentTimeMillis() + (5 * 60 * 1000);
         
         try {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 alarmManager.setExactAndAllowWhileIdle(
-                    android.app.AlarmManager.RTC_WAKEUP,
+                    AlarmManager.RTC_WAKEUP,
                     triggerTime,
                     pendingIntent
                 );
             } else {
                 alarmManager.setExact(
-                    android.app.AlarmManager.RTC_WAKEUP,
+                    AlarmManager.RTC_WAKEUP,
                     triggerTime,
                     pendingIntent
                 );
             }
-            Log.d(TAG, "Snooze alarm set for 5 minutes");
+            Log.d(TAG, "Snooze alarm set for 5 minutes, id: " + notificationId);
         } catch (Exception e) {
             Log.e(TAG, "Error setting snooze alarm", e);
         }
     }
+    
+    /**
+     * Genera un ID consistente basato sul reminderId
+     */
+    private int getConsistentId(String reminderId) {
+        if (reminderId == null) return (int) System.currentTimeMillis() % 1000000;
+        return Math.abs(reminderId.hashCode()) % 1000000;
+    }
+    
+    /**
+     * Rimuove emoji dal titolo per evitare accumulo
+     */
+    private String cleanTitle(String title) {
+        if (title == null) return "Promemoria";
+        return title.replace("⏰ ", "").replace("🔄 ", "");
+    }
 }
-

@@ -96,10 +96,10 @@ public class NativeNotificationPlugin extends Plugin {
         int notificationId = Math.abs(id.hashCode()) % 1000000;
         
         Context context = getContext();
-        
-        // Cancella l'alarm
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        
         if (alarmManager != null) {
+            // Cancella l'alarm principale
             Intent intent = new Intent(context, ReminderAlarmReceiver.class);
             PendingIntent pendingIntent = PendingIntent.getBroadcast(
                 context,
@@ -108,12 +108,22 @@ public class NativeNotificationPlugin extends Plugin {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
             );
             alarmManager.cancel(pendingIntent);
+            
+            // Cancella anche eventuali alarm di snooze
+            Intent snoozeIntent = new Intent(context, SnoozeAlarmReceiver.class);
+            PendingIntent snoozePending = PendingIntent.getBroadcast(
+                context,
+                notificationId,
+                snoozeIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
+            alarmManager.cancel(snoozePending);
         }
         
         // Cancella la notifica se già mostrata
         NotificationHelper.cancelNotification(context, notificationId);
         
-        Log.d(TAG, "Notification cancelled: " + id);
+        Log.d(TAG, "Notification and snooze alarms cancelled: " + id);
         call.resolve();
     }
     
