@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { LocalNotifications, LocalNotificationSchema, Channel, ActionType } from '@capacitor/local-notifications';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
+import { NativeNotification } from '@/plugins/NativeNotification';
 
 interface NativeNotificationOptions {
   id: string;
@@ -22,15 +23,10 @@ function getNotificationSettings() {
   return { vibrationEnabled: true, alarmMode: true };
 }
 
-// Channel ID
-const CHANNEL_ID = 'promemoria-alarm';
-
-// Action type ID per notifiche alarm-style
-const ALARM_ACTION_TYPE = 'alarm-actions';
-
 export function useNativeNotifications() {
   const [hasPermission, setHasPermission] = useState(false);
   const isNative = Capacitor.isNativePlatform();
+  const isAndroid = Capacitor.getPlatform() === 'android';
 
   // Request permission on mount
   useEffect(() => {
@@ -79,10 +75,9 @@ export function useNativeNotifications() {
     }
   }, [isNative]);
 
-  // Schedule notification with alarm-style actions
+  // Schedule notification using native plugin (Android) or Capacitor (iOS/Web)
   const scheduleNotification = useCallback(async (options: NativeNotificationOptions) => {
     const settings = getNotificationSettings();
-    const baseId = hashStringToNumber(options.id);
     
     if (!isNative) {
       // Web fallback
@@ -106,56 +101,73 @@ export function useNativeNotifications() {
           }
         }, delay);
       }
-      return baseId;
+      return options.id;
     }
 
+    // Android: usa plugin nativo per pulsanti che non aprono l'app
+    if (isAndroid) {
+      try {
+        const result = await NativeNotification.schedule({
+          id: options.id,
+          title: options.title,
+          body: options.body,
+          timestamp: options.scheduledAt.getTime(),
+        });
+        
+        console.log('✅ Notifica nativa Android programmata:', {
+          id: result.id,
+          title: options.title,
+          at: options.scheduledAt.toLocaleString(),
+        });
+        
+        return options.id;
+      } catch (error) {
+        console.error('❌ Errore scheduling notifica nativa:', error);
+        return null;
+      }
+    }
+
+    // iOS: usa Capacitor Local Notifications (fallback)
     try {
-      const notification: LocalNotificationSchema = {
-        id: baseId,
-        title: `⏰ ${options.title}`,
-        body: options.body,
-        schedule: {
-          at: options.scheduledAt,
-          allowWhileIdle: true,
-        },
-        smallIcon: 'ic_stat_notification',
-        largeIcon: 'ic_launcher',
-        channelId: CHANNEL_ID,
-        // Alarm-style: ongoing e fullScreenIntent per essere più invasivo
-        ongoing: true, // Non può essere dismessa con swipe
-        autoCancel: false,
-        // Action buttons
-        actionTypeId: ALARM_ACTION_TYPE,
-        extra: {
-          reminderId: options.id,
-          scheduledTime: options.scheduledAt.getTime(),
-        },
-      };
-
-      await LocalNotifications.schedule({ notifications: [notification] });
-      
-      console.log('✅ Notifica alarm-style programmata:', {
-        id: baseId,
-        title: options.title,
-        at: options.scheduledAt.toLocaleString(),
+      const baseId = hashStringToNumber(options.id);
+      await LocalNotifications.schedule({
+        notifications: [{
+          id: baseId,
+          title: `⏰ ${options.title}`,
+          body: options.body,
+          schedule: {
+            at: options.scheduledAt,
+            allowWhileIdle: true,
+          },
+        }],
       });
-
-      return baseId;
+      return options.id;
     } catch (error) {
-      console.error('❌ Errore scheduling notifica nativa:', error);
+      console.error('❌ Errore scheduling notifica:', error);
       return null;
     }
-  }, [isNative]);
+  }, [isNative, isAndroid]);
 
   const cancelNotification = useCallback(async (id: string) => {
-    const baseId = hashStringToNumber(id);
-
     if (!isNative) {
       console.log('📱 Cancel notifica web (noop):', id);
       return;
     }
 
+    // Android: usa plugin nativo
+    if (isAndroid) {
+      try {
+        await NativeNotification.cancel({ id });
+        console.log('🗑️ Notifica nativa cancellata:', id);
+      } catch (error) {
+        console.error('❌ Errore cancellazione notifica:', error);
+      }
+      return;
+    }
+
+    // iOS: usa Capacitor
     try {
+      const baseId = hashStringToNumber(id);
       await LocalNotifications.cancel({
         notifications: [{ id: baseId }],
       });
@@ -163,7 +175,7 @@ export function useNativeNotifications() {
     } catch (error) {
       console.error('❌ Errore cancellazione notifica:', error);
     }
-  }, [isNative]);
+  }, [isNative, isAndroid]);
 
   const cancelAllNotifications = useCallback(async () => {
     if (!isNative) return;
@@ -182,166 +194,40 @@ export function useNativeNotifications() {
   }, [isNative]);
 
   const testNotification = useCallback(async () => {
-    const now = new Date();
-    const scheduledAt = new Date(now.getTime() + 5000); // 5 seconds from now
+    if (!isNative) {
+      // Web test
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Test Promemoria', {
+          body: 'Le notifiche funzionano! 🎉',
+          icon: '/icon-192.png',
+        });
+      }
+      return true;
+    }
 
+    // Android: usa plugin nativo per test immediato
+    if (isAndroid) {
+      try {
+        await NativeNotification.test();
+        console.log('✅ Test notifica nativa mostrata');
+        return true;
+      } catch (error) {
+        console.error('❌ Errore test notifica:', error);
+        return false;
+      }
+    }
+
+    // iOS fallback
+    const now = new Date();
+    const scheduledAt = new Date(now.getTime() + 3000);
     const result = await scheduleNotification({
       id: `test-${Date.now()}`,
       title: 'Test Promemoria',
-      body: 'Tocca per aprire l\'app, usa i pulsanti per gestire!',
+      body: 'Le notifiche funzionano! 🎉',
       scheduledAt,
     });
-
     return !!result;
-  }, [scheduleNotification]);
-
-  // Snooze: ri-programma la notifica per 5 minuti dopo
-  const snoozeNotification = useCallback(async (id: string, title: string, body: string) => {
-    const snoozeTime = new Date(Date.now() + 5 * 60 * 1000); // 5 minuti
-    
-    // Prima cancella la notifica corrente
-    await cancelNotification(id);
-    
-    // Poi riprogrammala
-    await scheduleNotification({
-      id: `${id}-snooze-${Date.now()}`,
-      title: `🔄 ${title}`,
-      body: body,
-      scheduledAt: snoozeTime,
-    });
-    
-    console.log('⏰ Notifica rimandatadi 5 minuti');
-  }, [cancelNotification, scheduleNotification]);
-
-  // Setup notification channels and action types for Android
-  useEffect(() => {
-    if (isNative) {
-      setupNotificationChannels();
-      setupActionTypes();
-      setupNotificationListeners();
-    }
-  }, [isNative]);
-
-  const setupNotificationChannels = async () => {
-    try {
-      // Create high-priority alarm channel
-      const channel: Channel = {
-        id: CHANNEL_ID,
-        name: 'Promemoria',
-        description: 'Notifiche per i tuoi promemoria',
-        importance: 5, // MAX importance
-        visibility: 1, // PUBLIC
-        vibration: true,
-        lights: true,
-        lightColor: '#667eea',
-      };
-
-      await LocalNotifications.createChannel(channel);
-      console.log('📢 Canale notifiche alarm creato');
-    } catch (error) {
-      console.log('Errore creazione canale:', error);
-    }
-  };
-
-  const setupActionTypes = async () => {
-    try {
-      const actionTypes: ActionType[] = [
-        {
-          id: ALARM_ACTION_TYPE,
-          actions: [
-            {
-              id: 'stop',
-              title: 'Completata',
-              destructive: false,
-            },
-            {
-              id: 'snooze',
-              title: '⏰ 5 min',
-              destructive: false,
-            },
-          ],
-        },
-      ];
-
-      await LocalNotifications.registerActionTypes({ types: actionTypes });
-      console.log('📱 Action types registrati: Fatto, 5 min');
-    } catch (error) {
-      console.log('Errore registrazione action types:', error);
-    }
-  };
-
-  const setupNotificationListeners = () => {
-    // When notification is received
-    LocalNotifications.addListener('localNotificationReceived', (notification) => {
-      console.log('🔔 Notifica ricevuta:', notification);
-    });
-
-    // When user taps notification or action button
-    LocalNotifications.addListener('localNotificationActionPerformed', async (action) => {
-      console.log('👆 Azione su notifica:', action);
-      
-      const { actionId, notification } = action;
-      const extra = notification.extra;
-      
-      if (actionId === 'snooze' && extra?.reminderId) {
-        // Rimanda di 5 minuti - NON aprire l'app
-        const snoozeTime = new Date(Date.now() + 5 * 60 * 1000);
-        
-        // Cancel current notification
-        await LocalNotifications.cancel({ 
-          notifications: [{ id: notification.id }] 
-        });
-        
-        // Schedule new one for 5 minutes later
-        const newId = hashStringToNumber(`${extra.reminderId}-snooze-${Date.now()}`);
-        await LocalNotifications.schedule({
-          notifications: [{
-            id: newId,
-            title: `🔄 ${notification.title?.replace('⏰ ', '').replace('🔄 ', '')}`,
-            body: notification.body || '',
-            schedule: { at: snoozeTime, allowWhileIdle: true },
-            smallIcon: 'ic_stat_notification',
-            largeIcon: 'ic_launcher',
-            channelId: CHANNEL_ID,
-            ongoing: true,
-            autoCancel: false,
-            actionTypeId: ALARM_ACTION_TYPE,
-            extra: { reminderId: extra.reminderId },
-          }],
-        });
-        
-        console.log('⏰ Notifica rimandata di 5 minuti');
-        // Non aprire l'app per snooze - ritorna subito
-        return;
-        
-      } else if (actionId === 'stop') {
-        // Completata - cancella la notifica, NON aprire l'app
-        await LocalNotifications.cancel({ 
-          notifications: [{ id: notification.id }] 
-        });
-        console.log('✓ Notifica completata');
-        
-        // Dispatch event per marcare come completato
-        if (extra?.reminderId) {
-          window.dispatchEvent(new CustomEvent('notification-stopped', { 
-            detail: { reminderId: extra.reminderId } 
-          }));
-        }
-        // Non aprire l'app per stop
-        return;
-        
-      } else if (actionId === 'tap') {
-        // Tap sulla notifica stessa - apri l'app
-        await LocalNotifications.cancel({ 
-          notifications: [{ id: notification.id }] 
-        });
-        
-        window.dispatchEvent(new CustomEvent('notification-clicked', { 
-          detail: { reminderId: extra?.reminderId } 
-        }));
-      }
-    });
-  };
+  }, [isNative, isAndroid, scheduleNotification]);
 
   return {
     isNative,
@@ -351,7 +237,6 @@ export function useNativeNotifications() {
     cancelNotification,
     cancelAllNotifications,
     testNotification,
-    snoozeNotification,
   };
 }
 

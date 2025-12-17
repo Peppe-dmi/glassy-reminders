@@ -24,6 +24,26 @@
 
         </activity>
 
+        <!-- Receiver per azioni notifiche (Fatto/Rimanda) - NON apre l'app -->
+        <receiver
+            android:name=".NotificationActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.promemoria.app.ACTION_SNOOZE" />
+                <action android:name="com.promemoria.app.ACTION_COMPLETE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Receiver per notifiche snoozate -->
+        <receiver
+            android:name=".SnoozeAlarmReceiver"
+            android:exported="false" />
+
+        <!-- Receiver per alarm delle notifiche -->
+        <receiver
+            android:name=".ReminderAlarmReceiver"
+            android:exported="false" />
+
         <!-- Widget Provider -->
         <receiver
             android:name=".ReminderWidgetProvider"
